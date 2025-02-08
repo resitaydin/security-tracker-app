@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Button, Text, Card } from '@rneui/themed';
 import { signOut } from 'firebase/auth';
@@ -12,56 +13,57 @@ export default function AdminHomeScreen({ navigation }) {
         activeCheckpoints: 0
     });
 
-    useEffect(() => {
-        const fetchCompanyData = async () => {
-            try {
-                // Get user data to get companyId
-                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-                if (!userDoc.exists()) {
-                    throw new Error('User data not found');
-                }
-
-                const userData = userDoc.data();
-
-                // Get company data
-                const companyDoc = await getDoc(doc(db, 'companies', userData.companyId));
-                if (!companyDoc.exists()) {
-                    throw new Error('Company data not found');
-                }
-
-                setCompanyData({
-                    id: companyDoc.id,
-                    ...companyDoc.data()
-                });
-
-                // Get guards count
-                const guardsQuery = query(
-                    collection(db, 'users'),
-                    where('companyId', '==', userData.companyId),
-                    where('role', '==', 'guard')
-                );
-                const guardsSnapshot = await getDocs(guardsQuery);
-
-                // Get active checkpoints count
-                const checkpointsQuery = query(
-                    collection(db, 'checkpoints'),
-                    where('companyId', '==', userData.companyId)
-                );
-                const checkpointsSnapshot = await getDocs(checkpointsQuery);
-
-                setStats({
-                    totalGuards: guardsSnapshot.size,
-                    activeCheckpoints: checkpointsSnapshot.size
-                });
-
-            } catch (error) {
-                console.error('Error fetching company data:', error);
-                Alert.alert('Error', error.message);
+    const fetchCompanyData = async () => {
+        try {
+            const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+            if (!userDoc.exists()) {
+                throw new Error('User data not found');
             }
-        };
 
-        fetchCompanyData();
-    }, []);
+            const userData = userDoc.data();
+
+            // Get company data
+            const companyDoc = await getDoc(doc(db, 'companies', userData.companyId));
+            if (!companyDoc.exists()) {
+                throw new Error('Company data not found');
+            }
+
+            setCompanyData({
+                id: companyDoc.id,
+                ...companyDoc.data()
+            });
+
+            // Get guards count
+            const guardsQuery = query(
+                collection(db, 'users'),
+                where('companyId', '==', userData.companyId),
+                where('role', '==', 'guard')
+            );
+            const guardsSnapshot = await getDocs(guardsQuery);
+
+            // Get active checkpoints count
+            const checkpointsQuery = query(
+                collection(db, 'checkpoints'),
+                where('companyId', '==', userData.companyId)
+            );
+            const checkpointsSnapshot = await getDocs(checkpointsQuery);
+
+            setStats({
+                totalGuards: guardsSnapshot.size,
+                activeCheckpoints: checkpointsSnapshot.size
+            });
+
+        } catch (error) {
+            console.error('Error fetching company data:', error);
+            Alert.alert('Error', error.message);
+        }
+    };
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchCompanyData();
+        }, [])
+    );
 
     const handleLogout = async () => {
         try {
