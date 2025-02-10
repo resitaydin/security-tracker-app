@@ -9,10 +9,27 @@ import { getDistance, isPointWithinRadius } from 'geolib';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
 
 export default function CheckpointDetailScreen({ route, navigation }) {
-    const { checkpoint } = route.params;
+    const { checkpoint, isVerified } = route.params;
     const [location, setLocation] = useState(null);
     const [distance, setDistance] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        // Update navigation options to show verification status
+        navigation.setOptions({
+            headerRight: () => (
+                isVerified ? (
+                    <Icon
+                        name="check-circle"
+                        type="material"
+                        color="#4caf50"
+                        size={24}
+                        style={{ marginRight: 15 }}
+                    />
+                ) : null
+            )
+        });
+    }, [navigation, isVerified]);
 
     useEffect(() => {
         requestLocationPermission();
@@ -164,6 +181,15 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                         Recurs every {checkpoint.recurringHours} hours
                     </Text>
                 )}
+                <View style={styles.statusContainer}>
+                    <Text style={styles.text}>Status: </Text>
+                    <Text style={[
+                        styles.text,
+                        isVerified ? styles.verifiedText : styles.notVerifiedText
+                    ]}>
+                        {isVerified ? 'Verified' : 'Not Verified'}
+                    </Text>
+                </View>
                 <Text style={styles.text}>
                     Maximum Distance: {CHECKPOINT_RADIUS} meters
                 </Text>
@@ -188,6 +214,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                     title="Verify Checkpoint"
                     onPress={verifyCheckpoint}
                     loading={loading}
+                    disabled={isVerified}
                     containerStyle={styles.button}
                 />
             </View>
@@ -196,6 +223,19 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    verifiedText: {
+        fontWeight: 'bold',
+        color: '#4caf50'  // Green
+    },
+    notVerifiedText: {
+        fontWeight: 'bold',
+        color: '#f44336'  // Red
+    },
     container: {
         flex: 1,
         padding: 16,

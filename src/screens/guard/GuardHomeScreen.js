@@ -8,19 +8,21 @@ import { handleCheckpointRecurrence } from '../../utils/checkpointUtils';
 
 const getStatusColor = (status) => {
     switch (status) {
-        case 'Active': return '#4caf50';
-        case 'Upcoming': return '#2196f3';
-        case 'Past': return '#f44336';
-        default: return '#757575';
+        case 'Verified': return '#4caf50';  // Green
+        case 'Active': return '#2196f3';    // Blue
+        case 'Upcoming': return '#ff9800';   // Orange
+        case 'Past': return '#f44336';      // Red
+        default: return '#757575';          // Grey
     }
 };
 
 export default function GuardHomeScreen({ navigation }) {
     const [checkpoints, setCheckpoints] = useState([]);
+    const [verifiedCheckpoints, setVerifiedCheckpoints] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchCheckpoints = async () => {
+        const fetchCheckpointsAndVerifications = async () => {
             try {
                 const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
                 if (!userDoc.exists()) {
@@ -28,52 +30,68 @@ export default function GuardHomeScreen({ navigation }) {
                 }
                 const userCompanyId = userDoc.data().companyId;
 
+                // Set up checkpoint listener
                 const checkpointsQuery = query(
                     collection(db, 'checkpoints'),
                     where('companyId', '==', userCompanyId)
                 );
 
-                const unsubscribe = onSnapshot(checkpointsQuery, async (snapshot) => {
+                // Set up verifications listener
+                const verificationsQuery = query(
+                    collection(db, 'checkpoint_verifications'),
+                    where('guardId', '==', auth.currentUser.uid),
+                    where('companyId', '==', userCompanyId)
+                );
+
+                const unsubscribeCheckpoints = onSnapshot(checkpointsQuery, async (snapshot) => {
                     const checkpointList = await Promise.all(snapshot.docs.map(async doc => {
                         const checkpoint = { id: doc.id, ...doc.data() };
-
-                        // Check for recurrence and update if needed
                         const recurrenceUpdate = handleCheckpointRecurrence(checkpoint);
                         if (recurrenceUpdate) {
-                            // Update the checkpoint with new times
-                            try {
-                                await updateDoc(doc.ref, {
-                                    startTime: recurrenceUpdate.startTime,
-                                    endTime: recurrenceUpdate.endTime,
-                                    lastRecurrence: recurrenceUpdate.lastRecurrence
-                                });
-                            } catch (error) {
-                                console.error('Error updating checkpoint recurrence:', error);
-                                // Continue loading even if update fails
-                            }
-
-                            // Update the local checkpoint object
+                            await updateDoc(doc.ref, {
+                                startTime: recurrenceUpdate.startTime,
+                                endTime: recurrenceUpdate.endTime,
+                                lastRecurrence: recurrenceUpdate.lastRecurrence
+                            });
                             checkpoint.startTime = recurrenceUpdate.startTime;
                             checkpoint.endTime = recurrenceUpdate.endTime;
                             checkpoint.lastRecurrence = recurrenceUpdate.lastRecurrence;
                         }
-
                         return checkpoint;
                     }));
-
                     setCheckpoints(checkpointList);
-                    setLoading(false);
                 });
 
-                return () => unsubscribe();
+                const unsubscribeVerifications = onSnapshot(verificationsQuery, (snapshot) => {
+                    const verifications = snapshot.docs.map(doc => ({
+                        ...doc.data(),
+                        verifiedAt: new Date(doc.data().verifiedAt)
+                    }));
+                    setVerifiedCheckpoints(verifications);
+                });
+
+                setLoading(false);
+                return () => {
+                    unsubscribeCheckpoints();
+                    unsubscribeVerifications();
+                };
             } catch (error) {
-                console.error('Error fetching checkpoints:', error);
+                console.error('Error fetching data:', error);
                 setLoading(false);
             }
         };
 
-        fetchCheckpoints();
+        fetchCheckpointsAndVerifications();
     }, []);
+
+    const isCheckpointVerified = (checkpoint) => {
+        const verification = verifiedCheckpoints.find(v =>
+            v.checkpointId === checkpoint.id &&
+            new Date(v.verifiedAt) >= new Date(checkpoint.startTime) &&
+            new Date(v.verifiedAt) <= new Date(checkpoint.endTime)
+        );
+        return !!verification;
+    };
 
     const handleLogout = async () => {
         try {
@@ -87,6 +105,7 @@ export default function GuardHomeScreen({ navigation }) {
         const now = new Date();
         const startTime = new Date(item.startTime);
         const endTime = new Date(item.endTime);
+        const verified = isCheckpointVerified(item);
 
         let status = 'Pending';
         if (now < startTime) {
@@ -94,16 +113,19 @@ export default function GuardHomeScreen({ navigation }) {
         } else if (now > endTime) {
             status = 'Past';
         } else {
-            status = 'Active';
+            status = verified ? 'Verified' : 'Active';
         }
 
         return (
             <ListItem
                 bottomDivider
-                onPress={() => navigation.navigate('CheckpointDetail', { checkpoint: item })}
+                onPress={() => navigation.navigate('CheckpointDetail', {
+                    checkpoint: item,
+                    isVerified: verified
+                })}
             >
                 <Icon
-                    name="location-pin"
+                    name={verified ? "check-circle" : "location-pin"}
                     type="material"
                     color={getStatusColor(status)}
                 />
