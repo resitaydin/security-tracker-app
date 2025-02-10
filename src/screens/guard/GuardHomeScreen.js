@@ -8,11 +8,12 @@ import { handleCheckpointRecurrence } from '../../utils/checkpointUtils';
 
 const getStatusColor = (status) => {
     switch (status) {
-        case 'Verified': return '#4caf50';  // Green
-        case 'Active': return '#2196f3';    // Blue
-        case 'Upcoming': return '#ff9800';   // Orange
-        case 'Past': return '#f44336';      // Red
-        default: return '#757575';          // Grey
+        case 'verified_ontime': return '#4caf50';  // Green
+        case 'verified_late': return '#ff9800';    // Orange
+        case 'missed': return '#f44336';          // Red
+        case 'active': return '#2196f3';          // Blue
+        case 'upcoming': return '#757575';        // Grey
+        default: return '#757575';
     }
 };
 
@@ -105,27 +106,34 @@ export default function GuardHomeScreen({ navigation }) {
         const now = new Date();
         const startTime = new Date(item.startTime);
         const endTime = new Date(item.endTime);
-        const verified = isCheckpointVerified(item);
+        const verification = verifiedCheckpoints.find(v =>
+            v.checkpointId === item.id &&
+            new Date(v.verifiedAt) >= startTime &&
+            new Date(v.verifiedAt) <= new Date(endTime)
+        );
 
-        let status = 'Pending';
-        if (now < startTime) {
-            status = 'Upcoming';
+        let status = 'pending';
+        if (verification) {
+            status = verification.status; // 'verified_ontime' or 'verified_late'
+        } else if (now < startTime) {
+            status = 'upcoming';
         } else if (now > endTime) {
-            status = 'Past';
+            status = 'missed';
         } else {
-            status = verified ? 'Verified' : 'Active';
+            status = 'active';
         }
 
+        // Update the ListItem JSX
         return (
             <ListItem
                 bottomDivider
                 onPress={() => navigation.navigate('CheckpointDetail', {
                     checkpoint: item,
-                    isVerified: verified
+                    isVerified: verification !== undefined
                 })}
             >
                 <Icon
-                    name={verified ? "check-circle" : "location-pin"}
+                    name={verification ? "check-circle" : "location-pin"}
                     type="material"
                     color={getStatusColor(status)}
                 />
@@ -134,7 +142,7 @@ export default function GuardHomeScreen({ navigation }) {
                     <ListItem.Subtitle>
                         {`Time: ${new Date(item.startTime).toLocaleTimeString()} - ${new Date(item.endTime).toLocaleTimeString()}`}
                         {item.isRecurring ? `\nRecurs every ${item.recurringHours} hours` : ''}
-                        {'\nStatus: ' + status}
+                        {'\nStatus: ' + status.replace('_', ' ').toUpperCase()}
                     </ListItem.Subtitle>
                 </ListItem.Content>
                 <ListItem.Chevron />

@@ -3,8 +3,7 @@ import { View, StyleSheet, Alert } from 'react-native';
 import { Text, Button, Card } from '@rneui/themed';
 import * as Location from 'expo-location';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { getAuth } from 'firebase/auth';
+import { auth, db } from '../../config/firebase';
 import { getDistance, isPointWithinRadius } from 'geolib';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
 
@@ -13,6 +12,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
     const [location, setLocation] = useState(null);
     const [distance, setDistance] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [userCompanyId, setUserCompanyId] = useState(null);
 
     useEffect(() => {
         // Update navigation options to show verification status
@@ -117,48 +117,54 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 
             // First verify location
             const isLocationValid = await checkLocation();
-            if (!isLocationValid) {
-                return; // Location check will show its own error message
-            }
+            if (!isLocationValid) return;
 
-            // Only check time window after location is verified
             const now = new Date();
             const startTime = new Date(checkpoint.startTime);
             const endTime = new Date(checkpoint.endTime);
 
-            // Check if too early
-            if (now < startTime) {
-                Alert.alert('Time Window Error', 'Too early to verify this checkpoint. Please return during the scheduled time window.');
-                return;
-            }
-
-            // Check if too late
-            if (now > endTime) {
-                Alert.alert('Time Window Error', 'Time window has expired.');
-                return;
-            }
-
-            // Generate custom verification ID
-            const customVerificationId = `VERIF_${Date.now()}`;
-
-            // Get current user and their company ID
-            const auth = getAuth();
+            // Get company settings for late window
             const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-            const userCompanyId = userDoc.data().companyId;
+            const companyDoc = await getDoc(doc(db, 'companies', userDoc.data().companyId));
+            const lateWindowMinutes = companyDoc.data()?.lateWindowMinutes || 15;
+            setUserCompanyId(userDoc.data().companyId);
+            // Calculate late window end time
+            const lateWindowEnd = new Date(endTime);
+            lateWindowEnd.setMinutes(lateWindowEnd.getMinutes() + lateWindowMinutes);
 
-            // Create verification with custom ID
+            // Check time windows
+            let verificationStatus;
+            if (now < startTime) {
+                Alert.alert('Time Window Error', 'Too early to verify this checkpoint.');
+                return;
+            } else if (now > lateWindowEnd) {
+                Alert.alert('Time Window Error', 'Time window has expired including late window.');
+                return;
+            } else if (now > endTime) {
+                verificationStatus = 'verified_late';
+            } else {
+                verificationStatus = 'verified_ontime';
+            }
+
+            // Create verification with custom ID and status
+            const customVerificationId = `VERIF_${Date.now()}`;
             await setDoc(doc(db, 'checkpoint_verifications', customVerificationId), {
                 id: customVerificationId,
                 checkpointId: checkpoint.id,
                 guardId: auth.currentUser.uid,
                 companyId: userCompanyId,
                 verifiedAt: new Date().toISOString(),
+                status: verificationStatus,
                 verifiedLatitude: location.coords.latitude,
                 verifiedLongitude: location.coords.longitude,
                 createdAt: new Date().toISOString()
             });
 
-            Alert.alert('Success', 'Checkpoint verified successfully');
+            Alert.alert('Success',
+                verificationStatus === 'verified_late'
+                    ? 'Checkpoint verified (Late)'
+                    : 'Checkpoint verified successfully'
+            );
             navigation.goBack();
 
         } catch (error) {
