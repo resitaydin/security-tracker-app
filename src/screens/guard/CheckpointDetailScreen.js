@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Text, Button, Card } from '@rneui/themed';
 import * as Location from 'expo-location';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { getDistance, isPointWithinRadius } from 'geolib';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
@@ -158,6 +158,12 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                 verifiedLatitude: location.coords.latitude,
                 verifiedLongitude: location.coords.longitude,
                 createdAt: new Date().toISOString()
+            });
+
+            await updateDoc(doc(db, 'checkpoints', checkpoint.id), {
+                status: verificationStatus,
+                lastVerifiedAt: new Date().toISOString(),
+                lastVerifiedBy: auth.currentUser.uid
             });
 
             Alert.alert('Success',

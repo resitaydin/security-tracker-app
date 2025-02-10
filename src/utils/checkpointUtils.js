@@ -34,15 +34,20 @@ export const handleCheckpointRecurrence = (checkpoint) => {
     const now = new Date();
     const startTime = new Date(checkpoint.startTime);
     const endTime = new Date(checkpoint.endTime);
+    const lastRecurrence = checkpoint.lastRecurrence ? new Date(checkpoint.lastRecurrence) : null;
     const recurringHours = parseInt(checkpoint.recurringHours);
 
-    // If the checkpoint's end time has passed, calculate next occurrence
+    // Add a check for minimum time between updates (e.g., 5 minutes)
+    if (lastRecurrence && (now - lastRecurrence) < (5 * 60 * 1000)) {
+        return null;
+    }
+
+    // If the checkpoint's end time has passed
     if (now > endTime) {
         // Calculate how many recurrence periods have passed
         const hoursSinceStart = Math.floor((now - startTime) / (1000 * 60 * 60));
         const periodsToAdd = Math.ceil(hoursSinceStart / recurringHours);
 
-        // Calculate new start and end times
         const newStartTime = new Date(startTime);
         newStartTime.setHours(startTime.getHours() + (periodsToAdd * recurringHours));
 

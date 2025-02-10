@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { Button, Text, Input, ListItem, Icon, Overlay } from '@rneui/themed';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';

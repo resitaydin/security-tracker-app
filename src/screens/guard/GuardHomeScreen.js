@@ -112,7 +112,7 @@ export default function GuardHomeScreen({ navigation }) {
             new Date(v.verifiedAt) <= new Date(endTime)
         );
 
-        let status = 'pending';
+        let status = 'upcoming'; // Changed this line
         if (verification) {
             status = verification.status; // 'verified_ontime' or 'verified_late'
         } else if (now < startTime) {
