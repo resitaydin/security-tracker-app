@@ -5,6 +5,7 @@ import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, setDoc, deleteDoc, doc, onSnapshot, query, where, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
+import { CHECKPOINT_RADIUS } from '../../config/constants';
 
 export default function ManageCheckpointsScreen() {
     const [checkpoints, setCheckpoints] = useState([]);
@@ -13,9 +14,9 @@ export default function ManageCheckpointsScreen() {
     const [name, setName] = useState('');
     const [startTime, setStartTime] = useState(new Date());
     const [endTime, setEndTime] = useState(new Date());
-    const [tolerance, setTolerance] = useState('50'); // Default 50 meters
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
+    const [recurringHours, setRecurringHours] = useState('0'); // 0 means no recurrence
 
     // Get company ID from current user
     const [companyId, setCompanyId] = useState(null);
@@ -96,9 +97,9 @@ export default function ManageCheckpointsScreen() {
             const location = await getCurrentLocation();
             if (!location) return;
 
-            const tolNum = parseInt(tolerance);
-            if (isNaN(tolNum) || tolNum <= 0) {
-                Alert.alert("Error", "Tolerance must be a positive number");
+            const recHours = parseInt(recurringHours);
+            if (isNaN(recHours) || recHours < 0) {
+                Alert.alert("Error", "Recurrence hours must be a non-negative number");
                 return;
             }
 
@@ -114,7 +115,10 @@ export default function ManageCheckpointsScreen() {
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 status: 'active',
-                tolerance: tolNum,
+                radius: CHECKPOINT_RADIUS,
+                recurringHours: recHours, // Add recurrence information
+                isRecurring: recHours > 0,
+                lastRecurrence: null,
                 createdAt: new Date().toISOString()
             };
 
@@ -169,7 +173,7 @@ export default function ManageCheckpointsScreen() {
                     Status: {item.status}
                 </ListItem.Subtitle>
                 <ListItem.Subtitle>
-                    Tolerance: {item.tolerance}m
+                    {item.isRecurring ? `Recurs every ${item.recurringHours} hours` : 'No recurrence'}
                 </ListItem.Subtitle>
             </ListItem.Content>
             <Icon
@@ -213,9 +217,9 @@ export default function ManageCheckpointsScreen() {
                     onChangeText={setName}
                 />
                 <Input
-                    placeholder="Tolerance (meters)"
-                    value={tolerance}
-                    onChangeText={setTolerance}
+                    placeholder="Recurrence (hours, 0 for none)"
+                    value={recurringHours}
+                    onChangeText={setRecurringHours}
                     keyboardType="numeric"
                 />
 

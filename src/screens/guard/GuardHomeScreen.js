@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
 import { Text, Button, ListItem, Icon } from '@rneui/themed';
 import { signOut } from 'firebase/auth';
-import { collection, query, onSnapshot, where, getDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDoc, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
+import { handleCheckpointRecurrence } from '../../utils/checkpointUtils';
 
 const getStatusColor = (status) => {
     switch (status) {
-        case 'Pending': return '#ffd700';
-        case 'Checked': return '#4caf50';
-        case 'Late': return '#ff9800';
+        case 'Active': return '#4caf50';
+        case 'Upcoming': return '#2196f3';
         case 'Past': return '#f44336';
-        default: return '#grey';
+        default: return '#757575';
     }
 };
 
@@ -22,24 +22,45 @@ export default function GuardHomeScreen({ navigation }) {
     useEffect(() => {
         const fetchCheckpoints = async () => {
             try {
-                // Get current user's company ID
                 const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
                 if (!userDoc.exists()) {
                     throw new Error('User data not found');
                 }
                 const userCompanyId = userDoc.data().companyId;
 
-                // Subscribe to checkpoints filtered by company ID
                 const checkpointsQuery = query(
                     collection(db, 'checkpoints'),
                     where('companyId', '==', userCompanyId)
                 );
 
-                const unsubscribe = onSnapshot(checkpointsQuery, (snapshot) => {
-                    const checkpointList = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
+                const unsubscribe = onSnapshot(checkpointsQuery, async (snapshot) => {
+                    const checkpointList = await Promise.all(snapshot.docs.map(async doc => {
+                        const checkpoint = { id: doc.id, ...doc.data() };
+
+                        // Check for recurrence and update if needed
+                        const recurrenceUpdate = handleCheckpointRecurrence(checkpoint);
+                        if (recurrenceUpdate) {
+                            // Update the checkpoint with new times
+                            try {
+                                await updateDoc(doc.ref, {
+                                    startTime: recurrenceUpdate.startTime,
+                                    endTime: recurrenceUpdate.endTime,
+                                    lastRecurrence: recurrenceUpdate.lastRecurrence
+                                });
+                            } catch (error) {
+                                console.error('Error updating checkpoint recurrence:', error);
+                                // Continue loading even if update fails
+                            }
+
+                            // Update the local checkpoint object
+                            checkpoint.startTime = recurrenceUpdate.startTime;
+                            checkpoint.endTime = recurrenceUpdate.endTime;
+                            checkpoint.lastRecurrence = recurrenceUpdate.lastRecurrence;
+                        }
+
+                        return checkpoint;
                     }));
+
                     setCheckpoints(checkpointList);
                     setLoading(false);
                 });
@@ -62,26 +83,42 @@ export default function GuardHomeScreen({ navigation }) {
         }
     };
 
-    const renderCheckpoint = ({ item }) => (
-        <ListItem
-            bottomDivider
-            onPress={() => navigation.navigate('CheckpointDetail', { checkpoint: item })}
-        >
-            <Icon
-                name="location-pin"
-                type="material"
-                color={getStatusColor(item.status)}
-            />
-            <ListItem.Content>
-                <ListItem.Title>{item.name}</ListItem.Title>
-                <ListItem.Subtitle>
-                    {`Time: ${new Date(item.startTime).toLocaleTimeString()} - ${new Date(item.endTime).toLocaleTimeString()}`}
-                    {'\nStatus: ' + item.status}
-                </ListItem.Subtitle>
-            </ListItem.Content>
-            <ListItem.Chevron />
-        </ListItem>
-    );
+    const renderCheckpoint = ({ item }) => {
+        const now = new Date();
+        const startTime = new Date(item.startTime);
+        const endTime = new Date(item.endTime);
+
+        let status = 'Pending';
+        if (now < startTime) {
+            status = 'Upcoming';
+        } else if (now > endTime) {
+            status = 'Past';
+        } else {
+            status = 'Active';
+        }
+
+        return (
+            <ListItem
+                bottomDivider
+                onPress={() => navigation.navigate('CheckpointDetail', { checkpoint: item })}
+            >
+                <Icon
+                    name="location-pin"
+                    type="material"
+                    color={getStatusColor(status)}
+                />
+                <ListItem.Content>
+                    <ListItem.Title>{item.name}</ListItem.Title>
+                    <ListItem.Subtitle>
+                        {`Time: ${new Date(item.startTime).toLocaleTimeString()} - ${new Date(item.endTime).toLocaleTimeString()}`}
+                        {item.isRecurring ? `\nRecurs every ${item.recurringHours} hours` : ''}
+                        {'\nStatus: ' + status}
+                    </ListItem.Subtitle>
+                </ListItem.Content>
+                <ListItem.Chevron />
+            </ListItem>
+        );
+    };
 
     return (
         <View style={styles.container}>

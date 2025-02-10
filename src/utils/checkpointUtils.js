@@ -25,3 +25,36 @@ export const updateCheckpointsStatus = async () => {
         console.error('Error updating checkpoints status:', error);
     }
 };
+
+export const handleCheckpointRecurrence = (checkpoint) => {
+    if (!checkpoint.isRecurring || !checkpoint.recurringHours || checkpoint.recurringHours <= 0) {
+        return null;
+    }
+
+    const now = new Date();
+    const startTime = new Date(checkpoint.startTime);
+    const endTime = new Date(checkpoint.endTime);
+    const recurringHours = parseInt(checkpoint.recurringHours);
+
+    // If the checkpoint's end time has passed, calculate next occurrence
+    if (now > endTime) {
+        // Calculate how many recurrence periods have passed
+        const hoursSinceStart = Math.floor((now - startTime) / (1000 * 60 * 60));
+        const periodsToAdd = Math.ceil(hoursSinceStart / recurringHours);
+
+        // Calculate new start and end times
+        const newStartTime = new Date(startTime);
+        newStartTime.setHours(startTime.getHours() + (periodsToAdd * recurringHours));
+
+        const newEndTime = new Date(endTime);
+        newEndTime.setHours(endTime.getHours() + (periodsToAdd * recurringHours));
+
+        return {
+            startTime: newStartTime.toISOString(),
+            endTime: newEndTime.toISOString(),
+            lastRecurrence: now.toISOString()
+        };
+    }
+
+    return null;
+};

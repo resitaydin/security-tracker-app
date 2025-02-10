@@ -1,0 +1,1 @@
+export const CHECKPOINT_RADIUS = 5; // 5 meters radius for all checkpoints

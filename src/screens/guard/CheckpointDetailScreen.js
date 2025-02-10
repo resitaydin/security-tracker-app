@@ -6,6 +6,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { getAuth } from 'firebase/auth';
 import { getDistance, isPointWithinRadius } from 'geolib';
+import { CHECKPOINT_RADIUS } from '../../config/constants';
 
 export default function CheckpointDetailScreen({ route, navigation }) {
     const { checkpoint } = route.params;
@@ -75,7 +76,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                     latitude: checkpoint.latitude,
                     longitude: checkpoint.longitude,
                 },
-                checkpoint.tolerance
+                CHECKPOINT_RADIUS
             );
 
             if (!isWithinRange) {
@@ -158,13 +159,18 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                 <Text style={styles.text}>
                     Time Window: {new Date(checkpoint.startTime).toLocaleTimeString()} - {new Date(checkpoint.endTime).toLocaleTimeString()}
                 </Text>
+                {checkpoint.isRecurring && (
+                    <Text style={styles.text}>
+                        Recurs every {checkpoint.recurringHours} hours
+                    </Text>
+                )}
                 <Text style={styles.text}>
-                    Tolerance: {checkpoint.tolerance} meters
+                    Maximum Distance: {CHECKPOINT_RADIUS} meters
                 </Text>
                 {distance !== null && (
                     <Text style={styles.text}>
-                        Distance: {distance} meters
-                        {distance > checkpoint.tolerance && (
+                        Current Distance: {distance} meters
+                        {distance > CHECKPOINT_RADIUS && (
                             <Text style={styles.errorText}> (Too far)</Text>
                         )}
                     </Text>
