@@ -63,3 +63,24 @@ export const handleCheckpointRecurrence = (checkpoint) => {
 
     return null;
 };
+export const filterCheckpointsForTimeWindow = (checkpoints) => {
+    const now = new Date();
+    const threeHoursAgo = new Date(now);
+    threeHoursAgo.setHours(now.getHours() - 3);
+
+    const twentyOneHoursAhead = new Date(now);
+    twentyOneHoursAhead.setHours(now.getHours() + 21);
+
+    return checkpoints.filter(checkpoint => {
+        const checkpointStart = new Date(checkpoint.startTime);
+        const checkpointEnd = new Date(checkpoint.endTime);
+
+        // Show checkpoint if:
+        // 1. Start time is within our 24-hour window OR
+        // 2. End time is within our 24-hour window OR
+        // 3. The checkpoint spans our window
+        return (checkpointStart >= threeHoursAgo && checkpointStart <= twentyOneHoursAhead) ||
+            (checkpointEnd >= threeHoursAgo && checkpointEnd <= twentyOneHoursAhead) ||
+            (checkpointStart <= threeHoursAgo && checkpointEnd >= twentyOneHoursAhead);
+    });
+};

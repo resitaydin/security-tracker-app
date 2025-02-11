@@ -4,7 +4,7 @@ import { Text, Button, ListItem, Icon } from '@rneui/themed';
 import { signOut } from 'firebase/auth';
 import { collection, query, onSnapshot, where, getDoc, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
-import { handleCheckpointRecurrence } from '../../utils/checkpointUtils';
+import { handleCheckpointRecurrence, filterCheckpointsForTimeWindow } from '../../utils/checkpointUtils';
 
 const getStatusColor = (status) => {
     switch (status) {
@@ -21,6 +21,7 @@ export default function GuardHomeScreen({ navigation }) {
     const [checkpoints, setCheckpoints] = useState([]);
     const [verifiedCheckpoints, setVerifiedCheckpoints] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filteredCheckpoints, setFilteredCheckpoints] = useState([]);
 
     useEffect(() => {
         const fetchCheckpointsAndVerifications = async () => {
@@ -60,7 +61,9 @@ export default function GuardHomeScreen({ navigation }) {
                         }
                         return checkpoint;
                     }));
+                    const filtered = filterCheckpointsForTimeWindow(checkpointList);
                     setCheckpoints(checkpointList);
+                    setFilteredCheckpoints(filtered);
                 });
 
                 const unsubscribeVerifications = onSnapshot(verificationsQuery, (snapshot) => {
