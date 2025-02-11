@@ -1,35 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Text, Button, Card } from '@rneui/themed';
+import { Text, Button, Card, Icon } from '@rneui/themed';
 import * as Location from 'expo-location';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { getDistance, isPointWithinRadius } from 'geolib';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
 
 export default function CheckpointDetailScreen({ route, navigation }) {
-    const { checkpoint, isVerified } = route.params;
+    const { checkpoint } = route.params;
     const [location, setLocation] = useState(null);
     const [distance, setDistance] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [userCompanyId, setUserCompanyId] = useState(null);
+    const [verificationData, setVerificationData] = useState(
+        route.params.verificationData ? {
+            ...route.params.verificationData,
+            verifiedAt: route.params.verificationData.verifiedAt ?
+                new Date(route.params.verificationData.verifiedAt) :
+                new Date()
+        } : null
+    );
 
     useEffect(() => {
-        // Update navigation options to show verification status
         navigation.setOptions({
             headerRight: () => (
-                isVerified ? (
+                verificationData ? (
                     <Icon
                         name="check-circle"
                         type="material"
-                        color="#4caf50"
+                        color={verificationData.status === 'verified_ontime' ? '#4caf50' : '#ff9800'}
                         size={24}
                         style={{ marginRight: 15 }}
                     />
                 ) : null
             )
         });
-    }, [navigation, isVerified]);
+    }, [navigation, verificationData]);
 
     useEffect(() => {
         requestLocationPermission();
@@ -65,22 +71,13 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                     longitude: checkpoint.longitude,
                 },
                 0.1 // Accuracy in meters (0.1m)
-            ); // Returns distance in meters
+            );
 
             calculatedDistance = Math.round(calculatedDistance * 100) / 100; // Round to 2 decimal places
 
             setLocation(currentLocation);
             setDistance(calculatedDistance);
 
-            console.log('Current location:', {
-                lat: currentLocation.coords.latitude,
-                lon: currentLocation.coords.longitude,
-                accuracy: currentLocation.coords.accuracy
-            });
-            console.log('Checkpoint location:', {
-                lat: checkpoint.latitude,
-                lon: checkpoint.longitude
-            });
             console.log('Calculated distance:', calculatedDistance);
 
             // Check if within radius using geolib
@@ -98,7 +95,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 
             if (!isWithinRange) {
                 Alert.alert('Location Error',
-                    `You are too far from the checkpoint (${calculatedDistance} meters away). Must be within ${checkpoint.tolerance} meters.`
+                    `You are too far from the checkpoint (${calculatedDistance} meters away). Must be within ${CHECKPOINT_RADIUS} meters.`
                 );
                 return false;
             }
@@ -114,10 +111,17 @@ export default function CheckpointDetailScreen({ route, navigation }) {
     const verifyCheckpoint = async () => {
         try {
             setLoading(true);
+            // Check if location is already available, if not, get it
+            if (!location) {
+                const isLocationValid = await checkLocation();
+                if (!isLocationValid) return;
+            }
 
-            // First verify location
-            const isLocationValid = await checkLocation();
-            if (!isLocationValid) return;
+            // Verify that location exists after potential check
+            if (!location) {
+                Alert.alert('Error', 'Please check your location first');
+                return;
+            }
 
             const now = new Date();
             const startTime = new Date(checkpoint.startTime);
@@ -125,9 +129,9 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 
             // Get company settings for late window
             const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-            const companyDoc = await getDoc(doc(db, 'companies', userDoc.data().companyId));
-            const lateWindowMinutes = companyDoc.data()?.lateWindowMinutes || 15;
-            setUserCompanyId(userDoc.data().companyId);
+            const companyId = userDoc.data().companyId;
+            const companyDoc = await getDoc(doc(db, 'companies', companyId)); const lateWindowMinutes = companyDoc.data()?.lateWindowMinutes || 15;
+
             // Calculate late window end time
             const lateWindowEnd = new Date(endTime);
             lateWindowEnd.setMinutes(lateWindowEnd.getMinutes() + lateWindowMinutes);
@@ -146,35 +150,50 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                 verificationStatus = 'verified_ontime';
             }
 
-            // Create verification with custom ID and status
-            const customVerificationId = `VERIF_${Date.now()}`;
-            await setDoc(doc(db, 'checkpoint_verifications', customVerificationId), {
-                id: customVerificationId,
+            const verificationId = `VERIF_${Date.now()}_${auth.currentUser.uid}`;
+            const verificationDataObj = {
+                id: verificationId,
                 checkpointId: checkpoint.id,
                 guardId: auth.currentUser.uid,
-                companyId: userCompanyId,
-                verifiedAt: new Date().toISOString(),
+                companyId: companyId,
+                verifiedAt: now.toISOString(),
                 status: verificationStatus,
                 verifiedLatitude: location.coords.latitude,
                 verifiedLongitude: location.coords.longitude,
-                createdAt: new Date().toISOString()
-            });
+                createdAt: now.toISOString()
+            };
 
-            await updateDoc(doc(db, 'checkpoints', checkpoint.id), {
-                status: verificationStatus,
-                lastVerifiedAt: new Date().toISOString(),
-                lastVerifiedBy: auth.currentUser.uid
-            });
+            const verificationRef = doc(db, 'checkpoint_verifications', verificationId);
+            await setDoc(verificationRef, verificationDataObj);
 
-            Alert.alert('Success',
+            // Verify the save was successful
+            const verificationDoc = await getDoc(verificationRef);
+            if (!verificationDoc.exists()) {
+                throw new Error('Verification failed to save');
+            }
+
+            setVerificationData({
+                ...verificationDataObj,
+                verifiedAt: now
+            })
+
+            Alert.alert(
+                'Success',
                 verificationStatus === 'verified_late'
                     ? 'Checkpoint verified (Late)'
-                    : 'Checkpoint verified successfully'
+                    : 'Checkpoint verified successfully',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => navigation.goBack()
+                    }
+                ]
             );
-            navigation.goBack();
 
         } catch (error) {
-            Alert.alert('Error', error.message);
+            console.error('Verification error:', error);
+            Alert.alert('Error', 'Failed to verify checkpoint: ' + error.message);
+            setVerificationData(null);
         } finally {
             setLoading(false);
         }
@@ -197,9 +216,9 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                     <Text style={styles.text}>Status: </Text>
                     <Text style={[
                         styles.text,
-                        isVerified ? styles.verifiedText : styles.notVerifiedText
+                        verificationData ? styles.verifiedText : styles.notVerifiedText
                     ]}>
-                        {isVerified ? 'Verified' : 'Not Verified'}
+                        {verificationData ? 'Verified' : 'Not Verified'}
                     </Text>
                 </View>
                 <Text style={styles.text}>
@@ -226,7 +245,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                     title="Verify Checkpoint"
                     onPress={verifyCheckpoint}
                     loading={loading}
-                    disabled={isVerified}
+                    disabled={!!verificationData || distance === null}
                     containerStyle={styles.button}
                 />
             </View>

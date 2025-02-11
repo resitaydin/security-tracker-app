@@ -85,15 +85,6 @@ export default function GuardHomeScreen({ navigation }) {
         fetchCheckpointsAndVerifications();
     }, []);
 
-    const isCheckpointVerified = (checkpoint) => {
-        const verification = verifiedCheckpoints.find(v =>
-            v.checkpointId === checkpoint.id &&
-            new Date(v.verifiedAt) >= new Date(checkpoint.startTime) &&
-            new Date(v.verifiedAt) <= new Date(checkpoint.endTime)
-        );
-        return !!verification;
-    };
-
     const handleLogout = async () => {
         try {
             await signOut(auth);
@@ -106,13 +97,16 @@ export default function GuardHomeScreen({ navigation }) {
         const now = new Date();
         const startTime = new Date(item.startTime);
         const endTime = new Date(item.endTime);
+
+        // Find verification for current guard only
         const verification = verifiedCheckpoints.find(v =>
             v.checkpointId === item.id &&
+            v.guardId === auth.currentUser.uid &&  // Add this check
             new Date(v.verifiedAt) >= startTime &&
-            new Date(v.verifiedAt) <= new Date(endTime)
+            new Date(v.verifiedAt) <= endTime
         );
 
-        let status = 'upcoming'; // Changed this line
+        let status = 'upcoming';
         if (verification) {
             status = verification.status; // 'verified_ontime' or 'verified_late'
         } else if (now < startTime) {
@@ -123,13 +117,12 @@ export default function GuardHomeScreen({ navigation }) {
             status = 'active';
         }
 
-        // Update the ListItem JSX
         return (
             <ListItem
                 bottomDivider
                 onPress={() => navigation.navigate('CheckpointDetail', {
                     checkpoint: item,
-                    isVerified: verification !== undefined
+                    verificationData: verification || null
                 })}
             >
                 <Icon
@@ -140,7 +133,7 @@ export default function GuardHomeScreen({ navigation }) {
                 <ListItem.Content>
                     <ListItem.Title>{item.name}</ListItem.Title>
                     <ListItem.Subtitle>
-                        {`Time: ${new Date(item.startTime).toLocaleTimeString()} - ${new Date(item.endTime).toLocaleTimeString()}`}
+                        {`Time: ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`}
                         {item.isRecurring ? `\nRecurs every ${item.recurringHours} hours` : ''}
                         {'\nStatus: ' + status.replace('_', ' ').toUpperCase()}
                     </ListItem.Subtitle>
