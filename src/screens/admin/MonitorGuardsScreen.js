@@ -61,73 +61,63 @@ export default function MonitorGuardsScreen() {
             where('companyId', '==', companyId)
         );
 
-        const unsubGuards = onSnapshot(guardsQuery, (snapshot) => {
-            const guardData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const unsubscribe = onSnapshot(guardsQuery, (guardSnapshot) => {
+            const guardData = guardSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setGuards(guardData);
-            // Recalculate stats whenever guards change
-            if (verifications.length > 0) {
-                calculateGuardStats(verifications, guardData);
-            }
-        });
 
-        const unsubCheckpoints = onSnapshot(checkpointsQuery, (snapshot) => {
-            const checkpointData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setCheckpoints(checkpointData);
-            // Recalculate stats whenever checkpoints change
-            if (verifications.length > 0) {
-                calculateGuardStats(verifications, guards, checkpointData);
-            }
-        });
+            // Get checkpoints
+            onSnapshot(checkpointsQuery, (checkpointSnapshot) => {
+                const checkpointData = checkpointSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setCheckpoints(checkpointData);
 
-        const unsubVerifications = onSnapshot(verificationsQuery, (snapshot) => {
-            const verificationsData = snapshot.docs
-                .map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    verifiedAt: new Date(doc.data().verifiedAt)
-                }))
-                .sort((a, b) => b.verifiedAt - a.verifiedAt);
-            setVerifications(verificationsData);
-            // Recalculate stats whenever verifications change
-            calculateGuardStats(verificationsData, guards, checkpoints);
+                // Get verifications and calculate stats
+                onSnapshot(verificationsQuery, (verificationSnapshot) => {
+                    const verificationData = verificationSnapshot.docs
+                        .map(doc => ({
+                            id: doc.id,
+                            ...doc.data(),
+                            verifiedAt: new Date(doc.data().verifiedAt)
+                        }));
+                    setVerifications(verificationData);
+
+                    // Calculate stats only when we have all data
+                    calculateGuardStats(verificationData, guardData, checkpointData);
+                });
+            });
         });
 
         setLoading(false);
-        return () => {
-            unsubGuards();
-            unsubCheckpoints();
-            unsubVerifications();
-        };
+        return () => unsubscribe();
     }, [companyId]);
 
-    const calculateGuardStats = (verificationData) => {
+    const calculateGuardStats = (verificationData, guardList, checkpointList) => {
         const stats = {};
-        guards.forEach(guard => {
+
+        // Initialize stats for each guard
+        guardList.forEach(guard => {
             const guardVerifications = verificationData.filter(v => v.guardId === guard.id);
+
             stats[guard.id] = {
-                totalVerifications: guardVerifications.length,
                 ontime: guardVerifications.filter(v => v.status === 'verified_ontime').length,
                 late: guardVerifications.filter(v => v.status === 'verified_late').length,
-                missed: 0, // Will be calculated below
+                missed: 0,
                 upcoming: 0
             };
-        });
 
-        // Calculate missed and upcoming checkpoints
-        checkpoints.forEach(checkpoint => {
-            const now = new Date();
-            const startTime = new Date(checkpoint.startTime);
-            const endTime = new Date(checkpoint.endTime);
+            // Calculate missed and upcoming for each checkpoint
+            checkpointList.forEach(checkpoint => {
+                const now = new Date();
+                const startTime = new Date(checkpoint.startTime);
+                const endTime = new Date(checkpoint.endTime);
 
-            guards.forEach(guard => {
-                const hasVerification = verificationData.some(v =>
-                    v.guardId === guard.id &&
+                // Check if guard has verified this checkpoint
+                const hasVerified = guardVerifications.some(v =>
                     v.checkpointId === checkpoint.id &&
                     new Date(v.verifiedAt) >= startTime &&
                     new Date(v.verifiedAt) <= endTime
                 );
 
-                if (!hasVerification) {
+                if (!hasVerified) {
                     if (now > endTime) {
                         stats[guard.id].missed++;
                     } else if (now < startTime) {
