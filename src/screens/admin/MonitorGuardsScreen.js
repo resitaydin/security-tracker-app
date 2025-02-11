@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, ListItem } from '@rneui/themed';
+import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
+import { Text, ListItem, Card, Badge, Divider } from '@rneui/themed';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
+
+const getStatusColor = (status) => {
+    switch (status) {
+        case 'verified_ontime': return '#4caf50';  // Green
+        case 'verified_late': return '#ff9800';    // Orange
+        case 'missed': return '#f44336';          // Red
+        case 'upcoming': return '#757575';        // Grey
+        case 'active': return '#2196f3';          // Blue
+        default: return '#757575';
+    }
+};
 
 export default function MonitorGuardsScreen() {
     const [guards, setGuards] = useState([]);
@@ -11,6 +22,9 @@ export default function MonitorGuardsScreen() {
     const [loading, setLoading] = useState(true);
     const [companyId, setCompanyId] = useState(null);
     const [expandedGuard, setExpandedGuard] = useState(null);
+
+    // Add stats for each guard
+    const [guardStats, setGuardStats] = useState({});
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -48,12 +62,21 @@ export default function MonitorGuardsScreen() {
         );
 
         const unsubGuards = onSnapshot(guardsQuery, (snapshot) => {
-            setGuards(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setLoading(false);
+            const guardData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setGuards(guardData);
+            // Recalculate stats whenever guards change
+            if (verifications.length > 0) {
+                calculateGuardStats(verifications, guardData);
+            }
         });
 
         const unsubCheckpoints = onSnapshot(checkpointsQuery, (snapshot) => {
-            setCheckpoints(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            const checkpointData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setCheckpoints(checkpointData);
+            // Recalculate stats whenever checkpoints change
+            if (verifications.length > 0) {
+                calculateGuardStats(verifications, guards, checkpointData);
+            }
         });
 
         const unsubVerifications = onSnapshot(verificationsQuery, (snapshot) => {
@@ -61,12 +84,15 @@ export default function MonitorGuardsScreen() {
                 .map(doc => ({
                     id: doc.id,
                     ...doc.data(),
-                    verifiedAt: doc.data().verifiedAt?.toDate?.() || new Date(doc.data().verifiedAt)
+                    verifiedAt: new Date(doc.data().verifiedAt)
                 }))
                 .sort((a, b) => b.verifiedAt - a.verifiedAt);
             setVerifications(verificationsData);
+            // Recalculate stats whenever verifications change
+            calculateGuardStats(verificationsData, guards, checkpoints);
         });
 
+        setLoading(false);
         return () => {
             unsubGuards();
             unsubCheckpoints();
@@ -74,48 +100,153 @@ export default function MonitorGuardsScreen() {
         };
     }, [companyId]);
 
-    const renderGuardItem = ({ item: guard }) => {
-        const guardVerifications = verifications.filter(v => v.guardId === guard.id);
-        const lastVerification = guardVerifications.length > 0 ?
-            guardVerifications[0].verifiedAt.toLocaleTimeString() : 'No verifications';
+    const calculateGuardStats = (verificationData) => {
+        const stats = {};
+        guards.forEach(guard => {
+            const guardVerifications = verificationData.filter(v => v.guardId === guard.id);
+            stats[guard.id] = {
+                totalVerifications: guardVerifications.length,
+                ontime: guardVerifications.filter(v => v.status === 'verified_ontime').length,
+                late: guardVerifications.filter(v => v.status === 'verified_late').length,
+                missed: 0, // Will be calculated below
+                upcoming: 0
+            };
+        });
+
+        // Calculate missed and upcoming checkpoints
+        checkpoints.forEach(checkpoint => {
+            const now = new Date();
+            const startTime = new Date(checkpoint.startTime);
+            const endTime = new Date(checkpoint.endTime);
+
+            guards.forEach(guard => {
+                const hasVerification = verificationData.some(v =>
+                    v.guardId === guard.id &&
+                    v.checkpointId === checkpoint.id &&
+                    new Date(v.verifiedAt) >= startTime &&
+                    new Date(v.verifiedAt) <= endTime
+                );
+
+                if (!hasVerification) {
+                    if (now > endTime) {
+                        stats[guard.id].missed++;
+                    } else if (now < startTime) {
+                        stats[guard.id].upcoming++;
+                    }
+                }
+            });
+        });
+
+        setGuardStats(stats);
+    };
+
+    const renderCheckpointStatus = (guard, checkpoint) => {
+        const now = new Date();
+        const startTime = new Date(checkpoint.startTime);
+        const endTime = new Date(checkpoint.endTime);
+
+        const verification = verifications.find(v =>
+            v.guardId === guard.id &&
+            v.checkpointId === checkpoint.id &&
+            v.verifiedAt >= startTime &&
+            v.verifiedAt <= endTime
+        );
+
+        let status = 'upcoming';
+        if (verification) {
+            status = verification.status;
+        } else if (now > endTime) {
+            status = 'missed';
+        } else if (now >= startTime && now <= endTime) {
+            status = 'active';
+        }
 
         return (
-            <ListItem.Accordion
-                content={
-                    <ListItem.Content>
-                        <ListItem.Title style={styles.guardName}>{guard.name}</ListItem.Title>
-                        <ListItem.Subtitle>{guard.email}</ListItem.Subtitle>
-                        <Text style={styles.statsText}>
-                            Last Verification: {lastVerification}
-                        </Text>
-                    </ListItem.Content>
-                }
-                isExpanded={expandedGuard === guard.id}
-                onPress={() => setExpandedGuard(expandedGuard === guard.id ? null : guard.id)}
-            >
-                <View style={styles.accordionContent}>
-                    <Text style={styles.sectionTitle}>Recent Verifications:</Text>
-                    {guardVerifications.slice(0, 5).map(verification => {
-                        const checkpoint = checkpoints.find(cp => cp.id === verification.checkpointId);
-                        return (
-                            <ListItem key={verification.id} bottomDivider>
+            <Badge
+                value={status.replace('_', ' ').toUpperCase()}
+                status={status === 'verified_ontime' ? 'success' :
+                    status === 'verified_late' ? 'warning' :
+                        status === 'missed' ? 'error' :
+                            status === 'active' ? 'primary' : 'grey'}
+                containerStyle={styles.badge}
+            />
+        );
+    };
+
+    const renderGuardItem = ({ item: guard }) => {
+        const stats = guardStats[guard.id] || {
+            totalVerifications: 0,
+            ontime: 0,
+            late: 0,
+            missed: 0,
+            upcoming: 0
+        };
+
+        return (
+            <Card>
+                <ListItem.Accordion
+                    content={
+                        <View style={styles.accordionHeader}>
+                            <View>
+                                <ListItem.Title style={styles.guardName}>{guard.name}</ListItem.Title>
+                                <ListItem.Subtitle>{guard.email}</ListItem.Subtitle>
+                            </View>
+                            <View style={styles.statsOverview}>
+                                <Badge value={`${stats.ontime} ✓`} status="success" />
+                                <Badge value={`${stats.late} ⚠`} status="warning" />
+                                <Badge value={`${stats.missed} ✗`} status="error" />
+                            </View>
+                        </View>
+                    }
+                    isExpanded={expandedGuard === guard.id}
+                    onPress={() => setExpandedGuard(expandedGuard === guard.id ? null : guard.id)}
+                >
+                    <View style={styles.accordionContent}>
+                        <View style={styles.statsContainer}>
+                            <Text style={styles.statTitle}>Performance Summary</Text>
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.ontime}</Text>
+                                    <Text style={styles.statLabel}>On Time</Text>
+                                </View>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.late}</Text>
+                                    <Text style={styles.statLabel}>Late</Text>
+                                </View>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.missed}</Text>
+                                    <Text style={styles.statLabel}>Missed</Text>
+                                </View>
+                                <View style={styles.statItem}>
+                                    <Text style={styles.statValue}>{stats.upcoming}</Text>
+                                    <Text style={styles.statLabel}>Upcoming</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <Divider style={styles.divider} />
+
+                        <Text style={styles.sectionTitle}>Checkpoint Status</Text>
+                        {checkpoints.map(checkpoint => (
+                            <ListItem key={checkpoint.id} bottomDivider>
                                 <ListItem.Content>
-                                    <ListItem.Title>{checkpoint?.name || 'Unknown Checkpoint'}</ListItem.Title>
+                                    <ListItem.Title>{checkpoint.name}</ListItem.Title>
                                     <ListItem.Subtitle>
-                                        {verification.verifiedAt.toLocaleString()}
+                                        {`${new Date(checkpoint.startTime).toLocaleTimeString()} - ${new Date(checkpoint.endTime).toLocaleTimeString()}`}
                                     </ListItem.Subtitle>
                                 </ListItem.Content>
+                                {renderCheckpointStatus(guard, checkpoint)}
                             </ListItem>
-                        );
-                    })}
-                </View>
-            </ListItem.Accordion>
+                        ))}
+                    </View>
+                </ListItem.Accordion>
+            </Card>
         );
     };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.header}>Guard Monitoring</Text>
+            <Text h4 style={styles.header}>Guard Monitoring</Text>
             <FlatList
                 data={guards}
                 renderItem={renderGuardItem}
@@ -133,35 +264,72 @@ export default function MonitorGuardsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#f5f5f5',
     },
     header: {
-        fontSize: 24,
-        fontWeight: 'bold',
         padding: 16,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+    },
+    accordionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flex: 1,
     },
     guardName: {
         fontSize: 18,
         fontWeight: 'bold',
     },
-    statsText: {
-        fontSize: 14,
+    statsOverview: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    accordionContent: {
+        paddingHorizontal: 15,
+        backgroundColor: '#fff',
+    },
+    statsContainer: {
+        marginVertical: 10,
+    },
+    statTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 15,
+    },
+    statItem: {
+        alignItems: 'center',
+    },
+    statValue: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#1976D2',
+    },
+    statLabel: {
+        fontSize: 12,
         color: '#666',
         marginTop: 4,
     },
     sectionTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        padding: 8,
-        backgroundColor: '#f9f9f9',
+        marginVertical: 10,
     },
-    accordionContent: {
-        paddingLeft: 15,
+    badge: {
+        marginLeft: 8,
+    },
+    divider: {
+        marginVertical: 10,
     },
     emptyContainer: {
         flex: 1,
         alignItems: 'center',
         padding: 20,
-    }
+    },
 });
