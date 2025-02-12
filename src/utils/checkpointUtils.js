@@ -66,10 +66,10 @@ export const handleCheckpointRecurrence = (checkpoint) => {
 export const filterCheckpointsForTimeWindow = (checkpoints) => {
     const now = new Date();
     const threeHoursAgo = new Date(now);
-    threeHoursAgo.setHours(now.getHours() - 3);
+    threeHoursAgo.setHours(now.getHours() - 18);
 
     const twentyOneHoursAhead = new Date(now);
-    twentyOneHoursAhead.setHours(now.getHours() + 21);
+    twentyOneHoursAhead.setHours(now.getHours() + 18);
 
     return checkpoints.filter(checkpoint => {
         const checkpointStart = new Date(checkpoint.startTime);

@@ -61,7 +61,8 @@ export default function GuardHomeScreen({ navigation }) {
                         }
                         return checkpoint;
                     }));
-                    const filtered = filterCheckpointsForTimeWindow(checkpointList);
+                    const filtered = filterCheckpointsForTimeWindow(checkpointList)
+                        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime)); // Add sorting
                     setCheckpoints(checkpointList);
                     setFilteredCheckpoints(filtered);
                 });
@@ -167,7 +168,7 @@ export default function GuardHomeScreen({ navigation }) {
                 </View>
             ) : (
                 <FlatList
-                    data={checkpoints}
+                    data={filteredCheckpoints}
                     renderItem={renderCheckpoint}
                     keyExtractor={item => item.id}
                 />
