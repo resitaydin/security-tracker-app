@@ -106,8 +106,7 @@ export default function GuardHomeScreen({ navigation }) {
         const verification = verifiedCheckpoints.find(v =>
             v.checkpointId === item.id &&
             v.guardId === auth.currentUser.uid &&  // Add this check
-            new Date(v.verifiedAt) >= startTime &&
-            new Date(v.verifiedAt) <= endTime
+            new Date(v.verifiedAt) >= startTime
         );
 
         let status = 'upcoming';
