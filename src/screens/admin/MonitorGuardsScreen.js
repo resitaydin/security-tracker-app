@@ -4,14 +4,20 @@ import { Text, ListItem, Card, Badge, Divider } from '@rneui/themed';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 
-const getStatusColor = (status) => {
+const getStatusBadgeProps = (status) => {
     switch (status) {
-        case 'verified_ontime': return '#4caf50';  // Green
-        case 'verified_late': return '#ff9800';    // Orange
-        case 'missed': return '#f44336';          // Red
-        case 'upcoming': return '#757575';        // Grey
-        case 'active': return '#2196f3';          // Blue
-        default: return '#757575';
+        case 'verified_ontime':
+            return { status: 'success', color: '#4caf50' };
+        case 'verified_late':
+            return { status: 'warning', color: '#ff9800' };
+        case 'missed':
+            return { status: 'error', color: '#f44336' };
+        case 'upcoming':
+            return { status: 'grey', color: '#757575' };
+        case 'active':
+            return { status: 'primary', color: '#2196f3' };
+        default:
+            return { status: 'grey', color: '#757575' };
     }
 };
 
@@ -67,7 +73,9 @@ export default function MonitorGuardsScreen() {
 
             // Get checkpoints
             onSnapshot(checkpointsQuery, (checkpointSnapshot) => {
-                const checkpointData = checkpointSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const checkpointData = checkpointSnapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
                 setCheckpoints(checkpointData);
 
                 // Get verifications and calculate stats
@@ -93,7 +101,6 @@ export default function MonitorGuardsScreen() {
     const calculateGuardStats = (verificationData, guardList, checkpointList) => {
         const stats = {};
 
-        // Initialize stats for each guard
         guardList.forEach(guard => {
             const guardVerifications = verificationData.filter(v => v.guardId === guard.id);
 
@@ -101,29 +108,38 @@ export default function MonitorGuardsScreen() {
                 ontime: guardVerifications.filter(v => v.status === 'verified_ontime').length,
                 late: guardVerifications.filter(v => v.status === 'verified_late').length,
                 missed: 0,
-                upcoming: 0
+                upcoming: 0,
+                checkpoints: {}
             };
 
-            // Calculate missed and upcoming for each checkpoint
+            // Calculate missed and upcoming
             checkpointList.forEach(checkpoint => {
                 const now = new Date();
                 const startTime = new Date(checkpoint.startTime);
                 const endTime = new Date(checkpoint.endTime);
 
                 // Check if guard has verified this checkpoint
-                const hasVerified = guardVerifications.some(v =>
+                const verification = guardVerifications.find(v =>
                     v.checkpointId === checkpoint.id &&
-                    new Date(v.verifiedAt) >= startTime &&
-                    new Date(v.verifiedAt) <= endTime
+                    new Date(v.verifiedAt) >= startTime
                 );
 
-                if (!hasVerified) {
-                    if (now > endTime) {
-                        stats[guard.id].missed++;
-                    } else if (now < startTime) {
-                        stats[guard.id].upcoming++;
-                    }
+                let status;
+                if (verification) {
+                    status = verification.status;
+                } else if (now > endTime) {
+                    status = 'missed';
+                    stats[guard.id].missed++;
+                } else if (now <= startTime) {
+                    status = 'upcoming';
+                    stats[guard.id].upcoming++;
+                } else {
+                    status = 'active';
+                    // Optionally track active count: stats[guard.id].active = (stats[guard.id].active || 0) + 1;
                 }
+
+                // Store the status for each checkpoint
+                stats[guard.id].checkpoints[checkpoint.id] = status;
             });
         });
 
@@ -131,34 +147,14 @@ export default function MonitorGuardsScreen() {
     };
 
     const renderCheckpointStatus = (guard, checkpoint) => {
-        const now = new Date();
-        const startTime = new Date(checkpoint.startTime);
-        const endTime = new Date(checkpoint.endTime);
-
-        const verification = verifications.find(v =>
-            v.guardId === guard.id &&
-            v.checkpointId === checkpoint.id &&
-            v.verifiedAt >= startTime &&
-            v.verifiedAt <= endTime
-        );
-
-        let status = 'upcoming';
-        if (verification) {
-            status = verification.status;
-        } else if (now > endTime) {
-            status = 'missed';
-        } else if (now >= startTime && now <= endTime) {
-            status = 'active';
-        }
+        const status = guardStats[guard.id]?.checkpoints[checkpoint.id] || 'upcoming';
+        const badgeProps = getStatusBadgeProps(status);
 
         return (
             <Badge
                 value={status.replace('_', ' ').toUpperCase()}
-                status={status === 'verified_ontime' ? 'success' :
-                    status === 'verified_late' ? 'warning' :
-                        status === 'missed' ? 'error' :
-                            status === 'active' ? 'primary' : 'grey'}
-                containerStyle={styles.badge}
+                status={badgeProps.status}
+                containerStyle={[styles.badge, { backgroundColor: badgeProps.color }]}
             />
         );
     };
@@ -182,9 +178,26 @@ export default function MonitorGuardsScreen() {
                                 <ListItem.Subtitle>{guard.email}</ListItem.Subtitle>
                             </View>
                             <View style={styles.statsOverview}>
-                                <Badge value={`${stats.ontime} ✓`} status="success" />
-                                <Badge value={`${stats.late} ⚠`} status="warning" />
-                                <Badge value={`${stats.missed} ✗`} status="error" />
+                                <Badge
+                                    value={`${stats.ontime} ✓`}
+                                    status="success"
+                                    containerStyle={{ backgroundColor: getStatusBadgeProps('verified_ontime').color }}
+                                />
+                                <Badge
+                                    value={`${stats.late} ⚠`}
+                                    status="warning"
+                                    containerStyle={{ backgroundColor: getStatusBadgeProps('verified_late').color }}
+                                />
+                                <Badge
+                                    value={`${stats.missed} ✗`}
+                                    status="error"
+                                    containerStyle={{ backgroundColor: getStatusBadgeProps('missed').color }}
+                                />
+                                <Badge
+                                    value={`${stats.upcoming} ◔`}
+                                    status="grey"
+                                    containerStyle={{ backgroundColor: getStatusBadgeProps('upcoming').color }}
+                                />
                             </View>
                         </View>
                     }
