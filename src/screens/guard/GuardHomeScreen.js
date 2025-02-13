@@ -4,7 +4,7 @@ import { Text, Button, ListItem, Icon } from '@rneui/themed';
 import { signOut } from 'firebase/auth';
 import { collection, query, onSnapshot, where, getDoc, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
-import { handleCheckpointRecurrence, filterCheckpointsForTimeWindow } from '../../utils/checkpointUtils';
+import { createRecurringCheckpoints, filterCheckpointsForTimeWindow } from '../../utils/checkpointUtils';
 
 const getStatusColor = (status) => {
     switch (status) {
@@ -46,23 +46,15 @@ export default function GuardHomeScreen({ navigation }) {
                 );
 
                 const unsubscribeCheckpoints = onSnapshot(checkpointsQuery, async (snapshot) => {
-                    const checkpointList = await Promise.all(snapshot.docs.map(async doc => {
-                        const checkpoint = { id: doc.id, ...doc.data() };
-                        const recurrenceUpdate = handleCheckpointRecurrence(checkpoint);
-                        if (recurrenceUpdate) {
-                            await updateDoc(doc.ref, {
-                                startTime: recurrenceUpdate.startTime,
-                                endTime: recurrenceUpdate.endTime,
-                                lastRecurrence: recurrenceUpdate.lastRecurrence
-                            });
-                            checkpoint.startTime = recurrenceUpdate.startTime;
-                            checkpoint.endTime = recurrenceUpdate.endTime;
-                            checkpoint.lastRecurrence = recurrenceUpdate.lastRecurrence;
-                        }
-                        return checkpoint;
+                    const checkpointList = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
                     }));
+
+                    // Remove the recurrence handling here as it's now handled during creation
                     const filtered = filterCheckpointsForTimeWindow(checkpointList)
-                        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime)); // Add sorting
+                        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
                     setCheckpoints(checkpointList);
                     setFilteredCheckpoints(filtered);
                 });

@@ -6,6 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, setDoc, deleteDoc, doc, onSnapshot, query, where, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
+import { createRecurringCheckpoints } from '../../utils/checkpointUtils';
 
 export default function ManageCheckpointsScreen() {
     const [checkpoints, setCheckpoints] = useState([]);
@@ -103,7 +104,7 @@ export default function ManageCheckpointsScreen() {
                 return;
             }
 
-            // Create checkpoint with custom ID
+            // Create main checkpoint with custom ID
             const customCheckpointId = `CP_${Date.now()}`;
             const checkpointData = {
                 id: customCheckpointId,
@@ -116,13 +117,20 @@ export default function ManageCheckpointsScreen() {
                 endTime: endTime.toISOString(),
                 status: 'active',
                 radius: CHECKPOINT_RADIUS,
-                recurringHours: recHours, // Add recurrence information
+                recurringHours: recHours,
                 isRecurring: recHours > 0,
                 lastRecurrence: null,
                 createdAt: new Date().toISOString()
             };
 
+            // Create the main checkpoint
             await setDoc(doc(db, 'checkpoints', customCheckpointId), checkpointData);
+
+            // Create recurring checkpoints if applicable
+            if (checkpointData.isRecurring) {
+                await createRecurringCheckpoints(checkpointData);
+            }
+
             setIsVisible(false);
             resetForm();
         } catch (error) {

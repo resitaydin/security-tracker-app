@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, setDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 export const updateCheckpointsStatus = async () => {
@@ -26,59 +26,88 @@ export const updateCheckpointsStatus = async () => {
     }
 };
 
-export const handleCheckpointRecurrence = (checkpoint) => {
+export const createRecurringCheckpoints = async (checkpoint) => {
     if (!checkpoint.isRecurring || !checkpoint.recurringHours || checkpoint.recurringHours <= 0) {
-        return null;
+        return [];
     }
 
     const now = new Date();
     const startTime = new Date(checkpoint.startTime);
-    const endTime = new Date(checkpoint.endTime);
-    const lastRecurrence = checkpoint.lastRecurrence ? new Date(checkpoint.lastRecurrence) : null;
     const recurringHours = parseInt(checkpoint.recurringHours);
+    const newCheckpoints = [];
 
-    // Add a check for minimum time between updates (e.g., 5 minutes)
-    if (lastRecurrence && (now - lastRecurrence) < (5 * 60 * 1000)) {
-        return null;
-    }
+    // Generate base ID once
+    const baseTimestamp = Date.now();
 
-    // If the checkpoint's end time has passed
-    if (now > endTime) {
-        // Calculate how many recurrence periods have passed
-        const hoursSinceStart = Math.floor((now - startTime) / (1000 * 60 * 60));
-        const periodsToAdd = Math.ceil(hoursSinceStart / recurringHours);
+    // Calculate how many periods fit within 24 hours
+    const maxPeriods = Math.floor(24 / recurringHours);
 
+    // Create new checkpoints for each period
+    for (let i = 1; i <= maxPeriods; i++) {
         const newStartTime = new Date(startTime);
-        newStartTime.setHours(startTime.getHours() + (periodsToAdd * recurringHours));
+        newStartTime.setHours(startTime.getHours() + (i * recurringHours));
 
-        const newEndTime = new Date(endTime);
-        newEndTime.setHours(endTime.getHours() + (periodsToAdd * recurringHours));
+        const newEndTime = new Date(checkpoint.endTime);
+        newEndTime.setHours(newEndTime.getHours() + (i * recurringHours));
 
-        return {
+        // Skip if the new checkpoint would start more than 24 hours ahead
+        if (newStartTime > new Date(now.getTime() + 24 * 60 * 60 * 1000)) {
+            break;
+        }
+
+        // Create new checkpoint with consistent ID format
+        const newCheckpointId = `CP_${baseTimestamp}_${i}`;
+
+        // Check if checkpoint with this ID already exists
+        const existingDoc = await getDoc(doc(db, 'checkpoints', newCheckpointId));
+        if (existingDoc.exists()) {
+            console.log(`Checkpoint ${newCheckpointId} already exists, skipping...`);
+            continue;
+        }
+
+        const newCheckpoint = {
+            ...checkpoint,
+            id: newCheckpointId,
             startTime: newStartTime.toISOString(),
             endTime: newEndTime.toISOString(),
-            lastRecurrence: now.toISOString()
+            isRecurringInstance: true,
+            originalCheckpointId: checkpoint.id,
+            createdAt: now.toISOString()
         };
+
+        try {
+            await setDoc(doc(db, 'checkpoints', newCheckpointId), newCheckpoint);
+            newCheckpoints.push(newCheckpoint);
+        } catch (error) {
+            console.error('Error creating recurring checkpoint:', error);
+        }
     }
 
-    return null;
+    // Update the original checkpoint's lastRecurrence
+    if (newCheckpoints.length > 0) {
+        try {
+            await updateDoc(doc(db, 'checkpoints', checkpoint.id), {
+                lastRecurrence: now.toISOString()
+            });
+        } catch (error) {
+            console.error('Error updating original checkpoint:', error);
+        }
+    }
+
+    return newCheckpoints;
 };
 export const filterCheckpointsForTimeWindow = (checkpoints) => {
     const now = new Date();
     const threeHoursAgo = new Date(now);
-    threeHoursAgo.setHours(now.getHours() - 18);
+    threeHoursAgo.setHours(now.getHours() - 24);
 
     const twentyOneHoursAhead = new Date(now);
-    twentyOneHoursAhead.setHours(now.getHours() + 18);
+    twentyOneHoursAhead.setHours(now.getHours() + 24);
 
     return checkpoints.filter(checkpoint => {
         const checkpointStart = new Date(checkpoint.startTime);
         const checkpointEnd = new Date(checkpoint.endTime);
 
-        // Show checkpoint if:
-        // 1. Start time is within our 24-hour window OR
-        // 2. End time is within our 24-hour window OR
-        // 3. The checkpoint spans our window
         return (checkpointStart >= threeHoursAgo && checkpointStart <= twentyOneHoursAhead) ||
             (checkpointEnd >= threeHoursAgo && checkpointEnd <= twentyOneHoursAhead) ||
             (checkpointStart <= threeHoursAgo && checkpointEnd >= twentyOneHoursAhead);
