@@ -6,6 +6,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { getDistance, isPointWithinRadius } from 'geolib';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
+import AppBar from '../../components/AppBar';
 
 export default function CheckpointDetailScreen({ route, navigation }) {
     const { checkpoint } = route.params;
@@ -201,53 +202,63 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 
     return (
         <View style={styles.container}>
-            <Card>
-                <Card.Title>{checkpoint.name}</Card.Title>
-                <Card.Divider />
-                <Text style={styles.text}>
-                    Time Window: {new Date(checkpoint.startTime).toLocaleTimeString()} - {new Date(checkpoint.endTime).toLocaleTimeString()}
-                </Text>
-                {checkpoint.isRecurring && (
+            <AppBar
+                title="Checkpoint Details"
+                leftComponent={{
+                    icon: 'arrow-back',
+                    color: '#fff',
+                    onPress: () => navigation.goBack()
+                }}
+            />
+            <View style={styles.content}>
+                <Card>
+                    <Card.Title>{checkpoint.name}</Card.Title>
+                    <Card.Divider />
                     <Text style={styles.text}>
-                        Recurs every {checkpoint.recurringHours} hours
+                        Time Window: {new Date(checkpoint.startTime).toLocaleTimeString()} - {new Date(checkpoint.endTime).toLocaleTimeString()}
                     </Text>
-                )}
-                <View style={styles.statusContainer}>
-                    <Text style={styles.text}>Status: </Text>
-                    <Text style={[
-                        styles.text,
-                        verificationData ? styles.verifiedText : styles.notVerifiedText
-                    ]}>
-                        {verificationData ? 'Verified' : 'Not Verified'}
-                    </Text>
-                </View>
-                <Text style={styles.text}>
-                    Maximum Distance: {CHECKPOINT_RADIUS} meters
-                </Text>
-                {distance !== null && (
+                    {checkpoint.isRecurring && (
+                        <Text style={styles.text}>
+                            Recurs every {checkpoint.recurringHours} hours
+                        </Text>
+                    )}
+                    <View style={styles.statusContainer}>
+                        <Text style={styles.text}>Status: </Text>
+                        <Text style={[
+                            styles.text,
+                            verificationData ? styles.verifiedText : styles.notVerifiedText
+                        ]}>
+                            {verificationData ? 'Verified' : 'Not Verified'}
+                        </Text>
+                    </View>
                     <Text style={styles.text}>
-                        Current Distance: {distance} meters
-                        {distance > CHECKPOINT_RADIUS && (
-                            <Text style={styles.errorText}> (Too far)</Text>
-                        )}
+                        Maximum Distance: {CHECKPOINT_RADIUS} meters
                     </Text>
-                )}
-            </Card>
+                    {distance !== null && (
+                        <Text style={styles.text}>
+                            Current Distance: {distance} meters
+                            {distance > CHECKPOINT_RADIUS && (
+                                <Text style={styles.errorText}> (Too far)</Text>
+                            )}
+                        </Text>
+                    )}
+                </Card>
 
-            <View style={styles.buttonContainer}>
-                <Button
-                    title="Check Location"
-                    onPress={checkLocation}
-                    loading={loading}
-                    containerStyle={styles.button}
-                />
-                <Button
-                    title="Verify Checkpoint"
-                    onPress={verifyCheckpoint}
-                    loading={loading}
-                    disabled={!!verificationData || distance === null}
-                    containerStyle={styles.button}
-                />
+                <View style={styles.buttonContainer}>
+                    <Button
+                        title="Check Location"
+                        onPress={checkLocation}
+                        loading={loading}
+                        containerStyle={styles.button}
+                    />
+                    <Button
+                        title="Verify Checkpoint"
+                        onPress={verifyCheckpoint}
+                        loading={loading}
+                        disabled={!!verificationData || distance === null}
+                        containerStyle={styles.button}
+                    />
+                </View>
             </View>
         </View>
     );
@@ -269,8 +280,10 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        padding: 16,
         backgroundColor: '#fff',
+    },
+    content: {  // Add this new style
+        padding: 16,
     },
     text: {
         marginBottom: 10,

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { Button, Text, Input, ListItem, Icon, Overlay } from '@rneui/themed';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import { Button, Text, Input, ListItem, Icon, Overlay, Header } from '@rneui/themed';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, setDoc, deleteDoc, doc, onSnapshot, query, where, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
 import { createRecurringCheckpoints } from '../../utils/checkpointUtils';
+import AppBar from '../../components/AppBar';
 
-export default function ManageCheckpointsScreen() {
+export default function ManageCheckpointsScreen({ navigation }) {
     const [checkpoints, setCheckpoints] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -195,22 +196,32 @@ export default function ManageCheckpointsScreen() {
 
     return (
         <View style={styles.container}>
-            <Button
-                title="Add New Checkpoint"
-                onPress={() => setIsVisible(true)}
-                containerStyle={styles.addButton}
+            <AppBar
+                title="Manage Checkpoints"
+                leftComponent={{
+                    icon: 'arrow-back',
+                    color: '#fff',
+                    onPress: () => navigation.goBack()
+                }}
             />
+            <ScrollView style={styles.scrollContainer}>
+                <Button
+                    title="Add New Checkpoint"
+                    onPress={() => setIsVisible(true)}
+                    containerStyle={styles.addButton}
+                />
 
-            {/* List of checkpoints */}
-            {checkpoints && (
-                <View>
-                    {checkpoints.map(item => (
-                        <View key={item.id}>
-                            {renderCheckpoint({ item })}
-                        </View>
-                    ))}
-                </View>
-            )}
+                {/* List of checkpoints */}
+                {checkpoints && (
+                    <View>
+                        {checkpoints.map(item => (
+                            <View key={item.id}>
+                                {renderCheckpoint({ item })}
+                            </View>
+                        ))}
+                    </View>
+                )}
+            </ScrollView>
 
             <Overlay
                 isVisible={isVisible}
@@ -294,6 +305,9 @@ export default function ManageCheckpointsScreen() {
 }
 
 const styles = StyleSheet.create({
+    scrollContainer: {
+        flex: 1,
+    },
     recurrenceContainer: {
         marginVertical: 10,
     },
@@ -307,7 +321,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-        paddingTop: 20
     },
     addButton: {
         margin: 16,

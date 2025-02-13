@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, StatusBar } from 'react-native';
+import { View, StyleSheet, Alert, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Input, Button, CheckBox } from '@rneui/themed';
-import { Text } from '@rneui/base';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
+import AppBar from '../../components/AppBar';
 
 export default function RegisterScreen({ navigation }) {
     const [email, setEmail] = useState('');
@@ -103,85 +103,97 @@ export default function RegisterScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <View style={styles.appBar}>
-                <Text style={styles.appBarTitle}>Security Tracker - Güvenlik Takip</Text>
-            </View>
-            <View style={styles.formContainer}>
-                <Text h3 style={styles.title}>
-                    {isAdmin ? 'Register Company Admin' : 'Register Guard'}
-                </Text>
+            <AppBar
+                title="Security Tracker App"
+                leftComponent={{
+                    icon: 'arrow-back',
+                    color: '#fff',
+                    onPress: () => navigation.goBack()
+                }}
+            />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.keyboardAvoidingView}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollViewContent}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={styles.formContainer}>
 
-                <CheckBox
-                    title="Register as Company Admin"
-                    checked={isAdmin}
-                    onPress={() => setIsAdmin(!isAdmin)}
-                    containerStyle={styles.checkboxContainer}
-                />
-                <Input
-                    placeholder="Name"
-                    value={name}
-                    onChangeText={setName}
-                    containerStyle={styles.inputContainer}
-                    inputStyle={styles.input}
-                />
-                <Input
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    containerStyle={styles.inputContainer}
-                    inputStyle={styles.input}
-                />
-                <Input
-                    placeholder="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    containerStyle={styles.inputContainer}
-                    inputStyle={styles.input}
-                />
-                <Input
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                    containerStyle={styles.inputContainer}
-                    inputStyle={styles.input}
-                />
-                {isAdmin ? (
-                    <Input
-                        placeholder="Company Name"
-                        value={companyName}
-                        onChangeText={setCompanyName}
-                        containerStyle={styles.inputContainer}
-                        inputStyle={styles.input}
-                    />
-                ) : (
-                    <Input
-                        placeholder="Company Name"
-                        value={existingCompanyId}
-                        onChangeText={setExistingCompanyId}
-                        containerStyle={styles.inputContainer}
-                        inputStyle={styles.input}
-                    />
-                )}
+                        <CheckBox
+                            title="Register as Company Admin"
+                            checked={isAdmin}
+                            onPress={() => setIsAdmin(!isAdmin)}
+                            containerStyle={styles.checkboxContainer}
+                        />
+                        <Input
+                            placeholder="Name"
+                            value={name}
+                            onChangeText={setName}
+                            containerStyle={styles.inputContainer}
+                            inputStyle={styles.input}
+                        />
+                        <Input
+                            placeholder="Email"
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            containerStyle={styles.inputContainer}
+                            inputStyle={styles.input}
+                        />
+                        <Input
+                            placeholder="Password"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            containerStyle={styles.inputContainer}
+                            inputStyle={styles.input}
+                        />
+                        <Input
+                            placeholder="Confirm Password"
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            secureTextEntry
+                            containerStyle={styles.inputContainer}
+                            inputStyle={styles.input}
+                        />
+                        {isAdmin ? (
+                            <Input
+                                placeholder="Company Name"
+                                value={companyName}
+                                onChangeText={setCompanyName}
+                                containerStyle={styles.inputContainer}
+                                inputStyle={styles.input}
+                            />
+                        ) : (
+                            <Input
+                                placeholder="Company Name"
+                                value={existingCompanyId}
+                                onChangeText={setExistingCompanyId}
+                                containerStyle={styles.inputContainer}
+                                inputStyle={styles.input}
+                            />
+                        )}
 
-                <Button
-                    title={isAdmin ? "Register Company" : "Register Guard"}
-                    onPress={handleRegister}
-                    loading={loading}
-                    buttonStyle={styles.loginButton}
-                    containerStyle={styles.buttonContainer}
-                />
-                <Button
-                    title="Back to Login"
-                    type="outline"
-                    onPress={() => navigation.navigate('Login')}
-                    containerStyle={styles.buttonContainer}
-                    titleStyle={styles.registerButtonTitle}
-                    buttonStyle={styles.registerButton}
-                />
-            </View>
+                        <Button
+                            title={isAdmin ? "Register Company" : "Register Guard"}
+                            onPress={handleRegister}
+                            loading={loading}
+                            buttonStyle={styles.loginButton}
+                            containerStyle={styles.buttonContainer}
+                        />
+                        <Button
+                            title="Back to Login"
+                            type="outline"
+                            onPress={() => navigation.navigate('Login')}
+                            containerStyle={styles.buttonContainer}
+                            titleStyle={styles.registerButtonTitle}
+                            buttonStyle={styles.registerButton}
+                        />
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 }
@@ -196,21 +208,8 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#E3F2FD', // Light blue background
     },
-    appBar: {
-        height: 56,
-        backgroundColor: '#1976D2', // Blue primary color
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        elevation: 4,
-    },
-    appBarTitle: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
     formContainer: {
-        flex: 1,
+        flex: 0,
         padding: 20,
         justifyContent: 'center',
     },

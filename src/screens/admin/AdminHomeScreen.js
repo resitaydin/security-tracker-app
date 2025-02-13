@@ -5,6 +5,7 @@ import { Button, Text, Card, Input } from '@rneui/themed';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../config/firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import AppBar from '../../components/AppBar';
 
 export default function AdminHomeScreen({ navigation }) {
     const [companyData, setCompanyData] = useState(null);
@@ -102,85 +103,93 @@ export default function AdminHomeScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <Text h4 style={styles.title}>Admin Dashboard</Text>
-
-            {companyData && (
-                <Card>
-                    <Card.Title>{companyData.name}</Card.Title>
-                    <Card.Divider />
-                    <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{stats.totalGuards}</Text>
-                            <Text style={styles.statLabel}>Guards</Text>
+            <AppBar
+                title="Admin Dashboard"
+                rightComponent={{
+                    icon: 'logout',
+                    color: '#fff',
+                    onPress: handleLogout
+                }}
+            />
+            <View style={styles.contentContainer}>
+                {companyData && (
+                    <Card>
+                        <Card.Title>{companyData.name}</Card.Title>
+                        <Card.Divider />
+                        <View style={styles.statsRow}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{stats.totalGuards}</Text>
+                                <Text style={styles.statLabel}>Guards</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{stats.activeCheckpoints}</Text>
+                                <Text style={styles.statLabel}>Checkpoints</Text>
+                            </View>
                         </View>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{stats.activeCheckpoints}</Text>
-                            <Text style={styles.statLabel}>Checkpoints</Text>
-                        </View>
-                    </View>
-                    <Text style={styles.dateText}>
-                        Company created: {formatDate(companyData.createdAt)}
-                    </Text>
-                </Card>
-
-            )}
-            <Card>
-                <Card.Title>Company Settings</Card.Title>
-                <Card.Divider />
-                {isEditingSettings ? (
-                    <View>
-                        <Input
-                            label="Late Window (minutes)"
-                            value={lateWindowMinutes}
-                            onChangeText={setLateWindowMinutes}
-                            keyboardType="numeric"
-                            placeholder="Enter minutes"
-                        />
-                        <View style={styles.settingsButtons}>
-                            <Button
-                                title="Cancel"
-                                type="outline"
-                                onPress={() => setIsEditingSettings(false)}
-                                containerStyle={styles.settingButton}
-                            />
-                            <Button
-                                title="Save"
-                                onPress={updateCompanySettings}
-                                containerStyle={styles.settingButton}
-                            />
-                        </View>
-                    </View>
-                ) : (
-                    <View>
-                        <Text style={styles.settingText}>
-                            Late Window: {companyData?.lateWindowMinutes || 15} minutes
+                        <Text style={styles.dateText}>
+                            Company created: {formatDate(companyData.createdAt)}
                         </Text>
-                        <Button
-                            title="Edit Settings"
-                            type="outline"
-                            onPress={() => setIsEditingSettings(true)}
-                        />
-                    </View>
+                    </Card>
+
                 )}
-            </Card>
-            <Button
-                title="Manage Checkpoints"
-                onPress={() => navigation.navigate('ManageCheckpoints')}
-                containerStyle={styles.button}
-            />
+                <Card>
+                    <Card.Title>Company Settings</Card.Title>
+                    <Card.Divider />
+                    {isEditingSettings ? (
+                        <View>
+                            <Input
+                                label="Late Window (minutes)"
+                                value={lateWindowMinutes}
+                                onChangeText={setLateWindowMinutes}
+                                keyboardType="numeric"
+                                placeholder="Enter minutes"
+                            />
+                            <View style={styles.settingsButtons}>
+                                <Button
+                                    title="Cancel"
+                                    type="outline"
+                                    onPress={() => setIsEditingSettings(false)}
+                                    containerStyle={styles.settingButton}
+                                />
+                                <Button
+                                    title="Save"
+                                    onPress={updateCompanySettings}
+                                    containerStyle={styles.settingButton}
+                                />
+                            </View>
+                        </View>
+                    ) : (
+                        <View>
+                            <Text style={styles.settingText}>
+                                Late Window: {companyData?.lateWindowMinutes || 15} minutes
+                            </Text>
+                            <Button
+                                title="Edit Settings"
+                                type="outline"
+                                onPress={() => setIsEditingSettings(true)}
+                            />
+                        </View>
+                    )}
+                </Card>
+                <Button
+                    title="Manage Checkpoints"
+                    onPress={() => navigation.navigate('ManageCheckpoints')}
+                    containerStyle={styles.button}
+                />
 
-            <Button
-                title="Monitor Guards"
-                onPress={() => navigation.navigate('Monitoring')}
-                containerStyle={styles.button}
-            />
+                <Button
+                    title="Monitor Guards"
+                    onPress={() => navigation.navigate('Monitoring')}
+                    containerStyle={styles.button}
+                />
 
-            <Button
-                title="Logout"
-                type="clear"
-                onPress={handleLogout}
-                containerStyle={styles.button}
-            />
+                <Button
+                    title="Logout"
+                    type="clear"
+                    onPress={handleLogout}
+                    containerStyle={styles.button}
+                />
+            </View>
         </View>
     );
 }
@@ -200,8 +209,10 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        padding: 20,
         backgroundColor: '#fff',
+    },
+    contentContainer: {  // Add this new style
+        padding: 20,
     },
     title: {
         textAlign: 'center',

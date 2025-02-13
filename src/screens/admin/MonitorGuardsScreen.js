@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { Text, ListItem, Card, Badge, Divider } from '@rneui/themed';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
+import AppBar from '../../components/AppBar';
 
 const getStatusBadgeProps = (status) => {
     switch (status) {
@@ -21,7 +22,7 @@ const getStatusBadgeProps = (status) => {
     }
 };
 
-export default function MonitorGuardsScreen() {
+export default function MonitorGuardsScreen({ navigation }) {
     const [guards, setGuards] = useState([]);
     const [checkpoints, setCheckpoints] = useState([]);
     const [verifications, setVerifications] = useState([]);
@@ -249,11 +250,20 @@ export default function MonitorGuardsScreen() {
 
     return (
         <View style={styles.container}>
-            <Text h4 style={styles.header}>Guard Monitoring</Text>
+            <AppBar
+                title="Monitor Guards"
+                leftComponent={{
+                    icon: 'arrow-back',
+                    color: '#fff',
+                    onPress: () => navigation.goBack()
+                }}
+            />
             <FlatList
                 data={guards}
                 renderItem={renderGuardItem}
                 keyExtractor={item => item.id}
+                contentContainerStyle={styles.listContainer}
+                showsVerticalScrollIndicator={true}
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Text>{loading ? 'Loading...' : 'No guards found'}</Text>
@@ -268,12 +278,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
-    },
-    header: {
-        padding: 16,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
     },
     accordionHeader: {
         flexDirection: 'row',
@@ -334,5 +338,9 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         padding: 20,
+    },
+    listContainer: {
+        padding: 10,
+        paddingBottom: 20, // Extra padding at bottom for better scroll experience
     },
 });

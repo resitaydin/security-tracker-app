@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
-import { Text, Button, ListItem, Icon } from '@rneui/themed';
+import { Text, ListItem, Icon } from '@rneui/themed';
 import { signOut } from 'firebase/auth';
-import { collection, query, onSnapshot, where, getDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
-import { createRecurringCheckpoints, filterCheckpointsForTimeWindow } from '../../utils/checkpointUtils';
+import { filterCheckpointsForTimeWindow } from '../../utils/checkpointUtils';
+import AppBar from '../../components/AppBar';
 
 const getStatusColor = (status) => {
     switch (status) {
@@ -51,7 +52,6 @@ export default function GuardHomeScreen({ navigation }) {
                         ...doc.data()
                     }));
 
-                    // Remove the recurrence handling here as it's now handled during creation
                     const filtered = filterCheckpointsForTimeWindow(checkpointList)
                         .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
@@ -140,14 +140,14 @@ export default function GuardHomeScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <Text h4>Checkpoints</Text>
-                <Button
-                    title="Logout"
-                    type="clear"
-                    onPress={handleLogout}
-                />
-            </View>
+            <AppBar
+                title="Security Rounds"
+                rightComponent={{
+                    icon: 'logout',
+                    color: '#fff',
+                    onPress: handleLogout
+                }}
+            />
 
             {loading ? (
                 <View style={styles.center}>
@@ -172,14 +172,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
     },
     center: {
         flex: 1,

@@ -5,6 +5,7 @@ import { Text } from '@rneui/base';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
+import AppBar from '../../components/AppBar';
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
@@ -47,13 +48,8 @@ export default function LoginScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <View style={styles.appBar}>
-                <Text style={styles.appBarTitle}>Security Tracker - Güvenlik Takip</Text>
-            </View>
+            <AppBar title="Security Tracker App" />
             <View style={styles.formContainer}>
-                <Text h3 style={styles.title}>
-                    Security Tracker - Güvenlik Takip
-                </Text>
                 <Input
                     placeholder="Email"
                     value={email}
@@ -94,19 +90,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#E3F2FD', // Light blue background
-    },
-    appBar: {
-        height: 56,
-        backgroundColor: '#1976D2', // Blue primary color
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        elevation: 4,
-    },
-    appBarTitle: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
     },
     formContainer: {
         flex: 1,
