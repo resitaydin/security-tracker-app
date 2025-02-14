@@ -47,7 +47,7 @@ export default function ManageCheckpointsScreen({ navigation }) {
             const checkpointList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
+            }))
             setCheckpoints(checkpointList);
         });
 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, StatusBar } from 'react-native';
 import { Input, Button } from '@rneui/themed';
-import { Text } from '@rneui/base';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';

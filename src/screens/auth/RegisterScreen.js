@@ -133,7 +133,7 @@ export default function RegisterScreen({ navigation }) {
             let companyId = '';
             let companyData = null;
 
-            // Find or create company
+            // Find existing company
             const companiesRef = collection(db, 'companies');
             const companyQuery = query(
                 companiesRef,
@@ -146,12 +146,18 @@ export default function RegisterScreen({ navigation }) {
                 companyId = companySnapshot.docs[0].id;
             }
 
-            // New company admin registration
+            // For new company admin registration
             if (companySnapshot.empty && isAdmin) {
+                // First create the user to check if email is available
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await signOut(auth);  // Sign out immediately after creation
+
+                // Only create company if user registration was successful
                 const newApprovalCode = generateApprovalCode();
                 const timestamp = Date.now();
                 const customCompanyId = `COMP_${timestamp}`;
 
+                // Create company document
                 await setDoc(doc(db, 'companies', customCompanyId), {
                     id: customCompanyId,
                     name: companyName,
@@ -159,34 +165,26 @@ export default function RegisterScreen({ navigation }) {
                     createdAt: new Date().toISOString(),
                     settings: {}
                 });
-                companyId = customCompanyId;
-                setGeneratedApprovalCode(newApprovalCode);
-
-                // Create user account without automatic sign in
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-                // Immediately sign out
-                await signOut(auth);
 
                 // Create user document
                 await setDoc(doc(db, 'users', userCredential.user.uid), {
                     id: userCredential.user.uid,
                     name,
                     email,
-                    companyId,
+                    companyId: customCompanyId,
                     role: 'admin',
                     createdAt: new Date().toISOString(),
                     allowedLocations: []
                 });
 
-                // Show overlay without immediate navigation
+                setGeneratedApprovalCode(newApprovalCode);
                 setShowApprovalCodeOverlay(true);
-                return; // Exit early for new admin case
+                return;
             }
 
             // Handle regular guard or existing admin registration
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await signOut(auth); // Sign out immediately
+            await signOut(auth);
 
             await setDoc(doc(db, 'users', userCredential.user.uid), {
                 id: userCredential.user.uid,
@@ -203,6 +201,7 @@ export default function RegisterScreen({ navigation }) {
 
         } catch (error) {
             Alert.alert('Error', error.message);
+            return;
         } finally {
             setLoading(false);
         }

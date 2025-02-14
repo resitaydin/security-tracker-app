@@ -9,11 +9,12 @@ import AppBar from '../../components/AppBar';
 
 const getStatusColor = (status) => {
     switch (status) {
-        case 'verified_ontime': return '#4caf50';  // Green
-        case 'verified_late': return '#ff9800';    // Orange
-        case 'missed': return '#f44336';          // Red
-        case 'active': return '#2196f3';          // Blue
-        case 'upcoming': return '#757575';        // Grey
+        case 'verified_ontime': return '#4caf50';
+        case 'verified_late': return '#ff9800';
+        case 'missed': return '#f44336';
+        case 'active': return '#2196f3';
+        case 'upcoming': return '#757575';
+        case 'late_verifiable': return '#ffd700';
         default: return '#757575';
     }
 };
@@ -23,6 +24,17 @@ export default function GuardHomeScreen({ navigation }) {
     const [verifiedCheckpoints, setVerifiedCheckpoints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filteredCheckpoints, setFilteredCheckpoints] = useState([]);
+    const [companySettings, setCompanySettings] = useState(null);
+    const [, setRefresh] = useState(0); // Force refresh timer
+
+    useEffect(() => {
+        // Update status every minute
+        const timer = setInterval(() => {
+            setRefresh(prev => prev + 1); // Force re-render
+        }, 60000); // Check every minute
+
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         const fetchCheckpointsAndVerifications = async () => {
@@ -32,6 +44,11 @@ export default function GuardHomeScreen({ navigation }) {
                     throw new Error('User data not found');
                 }
                 const userCompanyId = userDoc.data().companyId;
+
+                const companyDoc = await getDoc(doc(db, 'companies', userCompanyId));
+                if (companyDoc.exists()) {
+                    setCompanySettings(companyDoc.data());
+                }
 
                 // Set up checkpoint listener
                 const checkpointsQuery = query(
@@ -94,20 +111,25 @@ export default function GuardHomeScreen({ navigation }) {
         const startTime = new Date(item.startTime);
         const endTime = new Date(item.endTime);
 
+        // Calculate late window end time
+        const lateWindowEnd = new Date(endTime);
+        lateWindowEnd.setMinutes(lateWindowEnd.getMinutes() + (companySettings?.lateWindowMinutes || 15));
+
         // Find verification for current guard only
         const verification = verifiedCheckpoints.find(v =>
             v.checkpointId === item.id &&
-            v.guardId === auth.currentUser.uid &&  // Add this check
+            v.guardId === auth.currentUser.uid &&
             new Date(v.verifiedAt) >= startTime
         );
 
-        let status = 'upcoming';
+        let status;
         if (verification) {
-            status = verification.status; // 'verified_ontime' or 'verified_late'
+            status = verification.status;
         } else if (now < startTime) {
             status = 'upcoming';
         } else if (now > endTime) {
-            status = 'missed';
+            // Check if current time is past the late window
+            status = now > lateWindowEnd ? 'missed' : 'late_verifiable';
         } else {
             status = 'active';
         }
@@ -129,6 +151,7 @@ export default function GuardHomeScreen({ navigation }) {
                     <ListItem.Title>{item.name}</ListItem.Title>
                     <ListItem.Subtitle>
                         {`Time: ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`}
+                        {`\nLate Window: ${companySettings?.lateWindowMinutes || 15} minutes`}
                         {item.isRecurring ? `\nRecurs every ${item.recurringHours} hours` : ''}
                         {'\nStatus: ' + status.replace('_', ' ').toUpperCase()}
                     </ListItem.Subtitle>
