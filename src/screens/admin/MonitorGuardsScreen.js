@@ -4,6 +4,7 @@ import { Text, ListItem, Card, Badge, Divider } from '@rneui/themed';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import AppBar from '../../components/AppBar';
+import { useTranslation } from 'react-i18next';
 
 const getStatusBadgeProps = (status) => {
     switch (status) {
@@ -32,6 +33,7 @@ export default function MonitorGuardsScreen({ navigation }) {
 
     // Add stats for each guard
     const [guardStats, setGuardStats] = useState({});
+    const { t } = useTranslation();
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -207,30 +209,30 @@ export default function MonitorGuardsScreen({ navigation }) {
                 >
                     <View style={styles.accordionContent}>
                         <View style={styles.statsContainer}>
-                            <Text style={styles.statTitle}>Performance Summary</Text>
+                            <Text style={styles.statTitle}>{t('admin.performanceSummary')}</Text>
                             <View style={styles.statsGrid}>
                                 <View style={styles.statItem}>
                                     <Text style={styles.statValue}>{stats.ontime}</Text>
-                                    <Text style={styles.statLabel}>On Time</Text>
+                                    <Text style={styles.statLabel}>{t('status.onTime')}</Text>
                                 </View>
                                 <View style={styles.statItem}>
                                     <Text style={styles.statValue}>{stats.late}</Text>
-                                    <Text style={styles.statLabel}>Late</Text>
+                                    <Text style={styles.statLabel}>{t('status.late')}</Text>
                                 </View>
                                 <View style={styles.statItem}>
                                     <Text style={styles.statValue}>{stats.missed}</Text>
-                                    <Text style={styles.statLabel}>Missed</Text>
+                                    <Text style={styles.statLabel}>{t('status.missed')}</Text>
                                 </View>
                                 <View style={styles.statItem}>
                                     <Text style={styles.statValue}>{stats.upcoming}</Text>
-                                    <Text style={styles.statLabel}>Upcoming</Text>
+                                    <Text style={styles.statLabel}>{t('status.upcoming')}</Text>
                                 </View>
                             </View>
                         </View>
 
                         <Divider style={styles.divider} />
 
-                        <Text style={styles.sectionTitle}>Checkpoint Status</Text>
+                        <Text style={styles.sectionTitle}>{t('admin.checkpointStatus')}</Text>
                         {checkpoints.map(checkpoint => (
                             <ListItem key={checkpoint.id} bottomDivider>
                                 <ListItem.Content>
@@ -251,7 +253,7 @@ export default function MonitorGuardsScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <AppBar
-                title="Monitor Guards"
+                title={t('admin.monitorGuards')}
                 leftComponent={{
                     icon: 'arrow-back',
                     color: '#fff',

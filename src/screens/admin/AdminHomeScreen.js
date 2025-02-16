@@ -6,6 +6,8 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../../config/firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import AppBar from '../../components/AppBar';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../../components/LanguageSelector';
 
 export default function AdminHomeScreen({ navigation }) {
     const [companyData, setCompanyData] = useState(null);
@@ -15,6 +17,7 @@ export default function AdminHomeScreen({ navigation }) {
         totalGuards: 0,
         activeCheckpoints: 0
     });
+    const { t } = useTranslation();
 
     const fetchCompanyData = async () => {
         try {
@@ -104,13 +107,14 @@ export default function AdminHomeScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <AppBar
-                title="Admin Dashboard"
+                title={t('admin.dashboard')}
                 rightComponent={{
                     icon: 'logout',
                     color: '#fff',
                     onPress: handleLogout
                 }}
             />
+            <LanguageSelector />
             <View style={styles.contentContainer}>
                 {companyData && (
                     <Card>
@@ -119,40 +123,40 @@ export default function AdminHomeScreen({ navigation }) {
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
                                 <Text style={styles.statValue}>{stats.totalGuards}</Text>
-                                <Text style={styles.statLabel}>Guards</Text>
+                                <Text style={styles.statLabel}>{t('admin.guards')}</Text>
                             </View>
                             <View style={styles.statItem}>
                                 <Text style={styles.statValue}>{stats.activeCheckpoints}</Text>
-                                <Text style={styles.statLabel}>Checkpoints</Text>
+                                <Text style={styles.statLabel}>{t('admin.checkpoints')}</Text>
                             </View>
                         </View>
                         <Text style={styles.dateText}>
-                            Company created: {formatDate(companyData.createdAt)}
+                            {t('admin.companyCreated')}: {formatDate(companyData.createdAt)}
                         </Text>
                     </Card>
 
                 )}
                 <Card>
-                    <Card.Title>Company Settings</Card.Title>
+                    <Card.Title>{t('admin.companySettings')}</Card.Title>
                     <Card.Divider />
                     {isEditingSettings ? (
                         <View>
                             <Input
-                                label="Late Window (minutes)"
+                                label={t('admin.lateWindowMinutes')}
                                 value={lateWindowMinutes}
                                 onChangeText={setLateWindowMinutes}
                                 keyboardType="numeric"
-                                placeholder="Enter minutes"
+                                placeholder={t('admin.enterMinutes')}
                             />
                             <View style={styles.settingsButtons}>
                                 <Button
-                                    title="Cancel"
+                                    title={t('common.cancel')}
                                     type="outline"
                                     onPress={() => setIsEditingSettings(false)}
                                     containerStyle={styles.settingButton}
                                 />
                                 <Button
-                                    title="Save"
+                                    title={t('common.save')}
                                     onPress={updateCompanySettings}
                                     containerStyle={styles.settingButton}
                                 />
@@ -161,10 +165,10 @@ export default function AdminHomeScreen({ navigation }) {
                     ) : (
                         <View>
                             <Text style={styles.settingText}>
-                                Late Window: {companyData?.lateWindowMinutes || 15} minutes
+                                {t('admin.lateWindow')}: {companyData?.lateWindowMinutes || 15} {t('common.minutes')}
                             </Text>
                             <Button
-                                title="Edit Settings"
+                                title={t('admin.editSettings')}
                                 type="outline"
                                 onPress={() => setIsEditingSettings(true)}
                             />
@@ -172,19 +176,19 @@ export default function AdminHomeScreen({ navigation }) {
                     )}
                 </Card>
                 <Button
-                    title="Manage Checkpoints"
+                    title={t('admin.manageCheckpoints')}
                     onPress={() => navigation.navigate('ManageCheckpoints')}
                     containerStyle={styles.button}
                 />
 
                 <Button
-                    title="Monitor Guards"
+                    title={t('admin.monitorGuards')}
                     onPress={() => navigation.navigate('Monitoring')}
                     containerStyle={styles.button}
                 />
 
                 <Button
-                    title="Logout"
+                    title={t('common.logout')}
                     type="clear"
                     onPress={handleLogout}
                     containerStyle={styles.button}

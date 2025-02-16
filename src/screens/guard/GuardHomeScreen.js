@@ -6,6 +6,8 @@ import { collection, query, onSnapshot, where, getDoc, doc } from 'firebase/fire
 import { auth, db } from '../../config/firebase';
 import { filterCheckpointsForTimeWindow } from '../../utils/checkpointUtils';
 import AppBar from '../../components/AppBar';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../../components/LanguageSelector';
 
 const getStatusColor = (status) => {
     switch (status) {
@@ -26,6 +28,7 @@ export default function GuardHomeScreen({ navigation }) {
     const [filteredCheckpoints, setFilteredCheckpoints] = useState([]);
     const [companySettings, setCompanySettings] = useState(null);
     const [, setRefresh] = useState(0); // Force refresh timer
+    const { t } = useTranslation();
 
     useEffect(() => {
         // Update status every minute
@@ -91,6 +94,7 @@ export default function GuardHomeScreen({ navigation }) {
                 };
             } catch (error) {
                 console.error('Error fetching data:', error);
+                Alert.alert(t('common.error'), error.message);
                 setLoading(false);
             }
         };
@@ -137,6 +141,7 @@ export default function GuardHomeScreen({ navigation }) {
         return (
             <ListItem
                 bottomDivider
+                containerStyle={{ paddingVertical: 12, paddingBottom: 16 }}
                 onPress={() => navigation.navigate('CheckpointDetail', {
                     checkpoint: item,
                     verificationData: verification || null
@@ -147,13 +152,13 @@ export default function GuardHomeScreen({ navigation }) {
                     type="material"
                     color={getStatusColor(status)}
                 />
-                <ListItem.Content>
+                <ListItem.Content style={{ paddingBottom: 4 }}>
                     <ListItem.Title>{item.name}</ListItem.Title>
-                    <ListItem.Subtitle>
-                        {`Time: ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}`}
-                        {`\nLate Window: ${companySettings?.lateWindowMinutes || 15} minutes`}
-                        {item.isRecurring ? `\nRecurs every ${item.recurringHours} hours` : ''}
-                        {'\nStatus: ' + status.replace('_', ' ').toUpperCase()}
+                    <ListItem.Subtitle style={{ lineHeight: 15 }}>
+                        {t('guard.timeWindow')}: {startTime.toLocaleTimeString()} - {endTime.toLocaleTimeString()}
+                        {`\n${t('guard.lateWindow')}: ${companySettings?.lateWindowMinutes || 15} ${t('common.minutes')}`}
+                        {item.isRecurring ? `\n${t('admin.recurrenceHours')} ${item.recurringHours}` : ''}
+                        {`\n${t('guard.status')}: ${t(`status.${status}`)}`}
                     </ListItem.Subtitle>
                 </ListItem.Content>
                 <ListItem.Chevron />
@@ -164,27 +169,29 @@ export default function GuardHomeScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <AppBar
-                title="Security Rounds"
+                title={t('guard.securityRounds')}
                 rightComponent={{
                     icon: 'logout',
                     color: '#fff',
                     onPress: handleLogout
                 }}
             />
+            <LanguageSelector />
 
             {loading ? (
                 <View style={styles.center}>
-                    <Text>Loading checkpoints...</Text>
+                    <Text>{t('common.loading')}</Text>
                 </View>
             ) : checkpoints.length === 0 ? (
                 <View style={styles.center}>
-                    <Text>No checkpoints available</Text>
+                    <Text>{t('guard.noCheckpoints')}</Text>
                 </View>
             ) : (
                 <FlatList
                     data={filteredCheckpoints}
                     renderItem={renderCheckpoint}
                     keyExtractor={item => item.id}
+                    contentContainerStyle={{ paddingBottom: 16 }}
                 />
             )}
         </View>
@@ -195,10 +202,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+        paddingBottom: 16,
     },
     center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 16,
     },
 }); 

@@ -5,6 +5,8 @@ import { auth, db } from './src/config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
+import { LanguageProvider } from './src/contexts/LanguageContext';
+
 // Auth Screens
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterScreen from './src/screens/auth/RegisterScreen';
@@ -24,6 +26,16 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const initLanguage = async () => {
+      const language = await AsyncStorage.getItem('userLanguage');
+      if (language) {
+        i18next.changeLanguage(language);
+      }
+    };
+    initLanguage();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -60,29 +72,31 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!user ? (
-          // Auth Stack
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </>
-        ) : isAdmin ? (
-          // Admin Stack
-          <>
-            <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
-            <Stack.Screen name="ManageCheckpoints" component={ManageCheckpointsScreen} />
-            <Stack.Screen name="Monitoring" component={MonitorGuardsScreen} />
-          </>
-        ) : (
-          // Guard Stack
-          <>
-            <Stack.Screen name="GuardHome" component={GuardHomeScreen} />
-            <Stack.Screen name="CheckpointDetail" component={CheckpointDetailScreen} />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <LanguageProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!user ? (
+            // Auth Stack
+            <>
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Register" component={RegisterScreen} />
+            </>
+          ) : isAdmin ? (
+            // Admin Stack
+            <>
+              <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
+              <Stack.Screen name="ManageCheckpoints" component={ManageCheckpointsScreen} />
+              <Stack.Screen name="Monitoring" component={MonitorGuardsScreen} />
+            </>
+          ) : (
+            // Guard Stack
+            <>
+              <Stack.Screen name="GuardHome" component={GuardHomeScreen} />
+              <Stack.Screen name="CheckpointDetail" component={CheckpointDetailScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </LanguageProvider>
   );
 }

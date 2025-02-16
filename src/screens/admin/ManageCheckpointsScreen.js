@@ -8,6 +8,7 @@ import { db, auth } from '../../config/firebase';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
 import { createRecurringCheckpoints } from '../../utils/checkpointUtils';
 import AppBar from '../../components/AppBar';
+import { useTranslation } from 'react-i18next';
 
 export default function ManageCheckpointsScreen({ navigation }) {
     const [checkpoints, setCheckpoints] = useState([]);
@@ -19,7 +20,7 @@ export default function ManageCheckpointsScreen({ navigation }) {
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [recurringHours, setRecurringHours] = useState('0'); // 0 means no recurrence
-
+    const { t } = useTranslation();
     // Get company ID from current user
     const [companyId, setCompanyId] = useState(null);
 
@@ -197,7 +198,7 @@ export default function ManageCheckpointsScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <AppBar
-                title="Manage Checkpoints"
+                title={t('admin.manageCheckpoints')}
                 leftComponent={{
                     icon: 'arrow-back',
                     color: '#fff',
@@ -206,7 +207,7 @@ export default function ManageCheckpointsScreen({ navigation }) {
             />
             <ScrollView style={styles.scrollContainer}>
                 <Button
-                    title="Add New Checkpoint"
+                    title={t('admin.addNewCheckpoint')}
                     onPress={() => setIsVisible(true)}
                     containerStyle={styles.addButton}
                 />
@@ -228,29 +229,29 @@ export default function ManageCheckpointsScreen({ navigation }) {
                 onBackdropPress={() => setIsVisible(false)}
                 overlayStyle={styles.overlay}
             >
-                <Text h4 style={styles.overlayTitle}>Add New Checkpoint</Text>
+                <Text h4 style={styles.overlayTitle}>{t('admin.addNewCheckpoint')}</Text>
 
                 <Input
-                    placeholder="Checkpoint Name"
+                    placeholder={t('admin.checkpointName')}
                     value={name}
                     onChangeText={setName}
                 />
                 <Input
-                    placeholder="Recurrence (hours, 0 for none)"
+                    placeholder={t('admin.recurrenceHours')}
                     value={recurringHours}
                     onChangeText={setRecurringHours}
                     keyboardType="numeric"
                 />
 
                 <Button
-                    title={`Start Time: ${startTime.toLocaleTimeString()}`}
+                    title={t('admin.startTime', { time: startTime.toLocaleTimeString() })} // Add this to translations
                     onPress={() => setShowStartPicker(true)}
                     type="outline"
                     containerStyle={styles.timeButton}
                 />
 
                 <Button
-                    title={`End Time: ${endTime.toLocaleTimeString()}`}
+                    title={t('admin.endTime', { time: endTime.toLocaleTimeString() })} // Add this to translations
                     onPress={() => setShowEndPicker(true)}
                     type="outline"
                     containerStyle={styles.timeButton}
@@ -284,7 +285,7 @@ export default function ManageCheckpointsScreen({ navigation }) {
 
                 <View style={styles.buttonContainer}>
                     <Button
-                        title="Cancel"
+                        title={t('common.cancel')}
                         onPress={() => {
                             setIsVisible(false);
                             resetForm();
@@ -293,7 +294,7 @@ export default function ManageCheckpointsScreen({ navigation }) {
                         containerStyle={styles.button}
                     />
                     <Button
-                        title="Add"
+                        title={t('common.add')}
                         onPress={handleAddCheckpoint}
                         loading={loading}
                         containerStyle={styles.button}

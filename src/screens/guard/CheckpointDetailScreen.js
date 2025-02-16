@@ -7,6 +7,7 @@ import { auth, db } from '../../config/firebase';
 import { getDistance, isPointWithinRadius } from 'geolib';
 import { CHECKPOINT_RADIUS } from '../../config/constants';
 import AppBar from '../../components/AppBar';
+import { useTranslation } from 'react-i18next';
 
 export default function CheckpointDetailScreen({ route, navigation }) {
     const { checkpoint } = route.params;
@@ -21,6 +22,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                 new Date()
         } : null
     );
+    const { t } = useTranslation();
 
     useEffect(() => {
         navigation.setOptions({
@@ -46,7 +48,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission Denied', 'Location permission is required');
+                Alert.alert(t('guard.permissionDenied'), t('guard.locationPermissionRequired'));
             }
         } catch (error) {
             Alert.alert('Error', error.message);
@@ -95,10 +97,12 @@ export default function CheckpointDetailScreen({ route, navigation }) {
             );
 
             if (!isWithinRange) {
-                Alert.alert('Location Error',
-                    `You are too far from the checkpoint (${calculatedDistance} meters away). Must be within ${CHECKPOINT_RADIUS} meters.`
+                Alert.alert(t('guard.locationError'),
+                    t('guard.tooFarFromCheckpoint', {
+                        distance: calculatedDistance,
+                        radius: CHECKPOINT_RADIUS
+                    })
                 );
-                return false;
             }
             return true;
         } catch (error) {
@@ -140,10 +144,10 @@ export default function CheckpointDetailScreen({ route, navigation }) {
             // Check time windows
             let verificationStatus;
             if (now < startTime) {
-                Alert.alert('Time Window Error', 'Too early to verify this checkpoint.');
+                Alert.alert(t('guard.timeWindowError'), t('guard.tooEarly'));
                 return;
             } else if (now > lateWindowEnd) {
-                Alert.alert('Time Window Error', 'Time window has expired including late window.');
+                Alert.alert(t('guard.timeWindowError'), t('guard.timeExpired'));
                 return;
             } else if (now > endTime) {
                 verificationStatus = 'verified_late';
@@ -179,10 +183,10 @@ export default function CheckpointDetailScreen({ route, navigation }) {
             })
 
             Alert.alert(
-                'Success',
+                t('common.success'),
                 verificationStatus === 'verified_late'
-                    ? 'Checkpoint verified (Late)'
-                    : 'Checkpoint verified successfully',
+                    ? t('guard.checkpointVerifiedLate')
+                    : t('guard.checkpointVerified'),
                 [
                     {
                         text: 'OK',
@@ -193,7 +197,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 
         } catch (error) {
             console.error('Verification error:', error);
-            Alert.alert('Error', 'Failed to verify checkpoint: ' + error.message);
+            Alert.alert(t('common.error'), t('guard.verificationError', { message: error.message }));
             setVerificationData(null);
         } finally {
             setLoading(false);
@@ -203,7 +207,7 @@ export default function CheckpointDetailScreen({ route, navigation }) {
     return (
         <View style={styles.container}>
             <AppBar
-                title="Checkpoint Details"
+                title={t('guard.checkpoints')}
                 leftComponent={{
                     icon: 'arrow-back',
                     color: '#fff',
@@ -215,28 +219,28 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                     <Card.Title>{checkpoint.name}</Card.Title>
                     <Card.Divider />
                     <Text style={styles.text}>
-                        Time Window: {new Date(checkpoint.startTime).toLocaleTimeString()} - {new Date(checkpoint.endTime).toLocaleTimeString()}
+                        {t('guard.timeWindow')}: {new Date(checkpoint.startTime).toLocaleTimeString()} - {new Date(checkpoint.endTime).toLocaleTimeString()}
                     </Text>
                     {checkpoint.isRecurring && (
                         <Text style={styles.text}>
-                            Recurs every {checkpoint.recurringHours} hours
+                            {checkpoint.isRecurring && t('guard.recurringEvery', { hours: checkpoint.recurringHours })}
                         </Text>
                     )}
                     <View style={styles.statusContainer}>
-                        <Text style={styles.text}>Status: </Text>
+                        <Text style={styles.text}>{t('guard.status')}: </Text>
                         <Text style={[
                             styles.text,
                             verificationData ? styles.verifiedText : styles.notVerifiedText
                         ]}>
-                            {verificationData ? 'Verified' : 'Not Verified'}
+                            {verificationData ? t('guard.verified') : t('guard.notVerified')}
                         </Text>
                     </View>
                     <Text style={styles.text}>
-                        Maximum Distance: {CHECKPOINT_RADIUS} meters
+                        {t('guard.maximumDistance', { radius: CHECKPOINT_RADIUS })}
                     </Text>
                     {distance !== null && (
                         <Text style={styles.text}>
-                            Current Distance: {distance} meters
+                            {t('guard.currentDistance', { distance })}
                             {distance > CHECKPOINT_RADIUS && (
                                 <Text style={styles.errorText}> (Too far)</Text>
                             )}
@@ -246,13 +250,13 @@ export default function CheckpointDetailScreen({ route, navigation }) {
 
                 <View style={styles.buttonContainer}>
                     <Button
-                        title="Check Location"
+                        title={t('guard.checkLocation')}
                         onPress={checkLocation}
                         loading={loading}
                         containerStyle={styles.button}
                     />
                     <Button
-                        title="Verify Checkpoint"
+                        title={t('guard.verify')}
                         onPress={verifyCheckpoint}
                         loading={loading}
                         disabled={!!verificationData || distance === null}

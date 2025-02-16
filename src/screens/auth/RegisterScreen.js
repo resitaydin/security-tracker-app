@@ -6,6 +6,7 @@ import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firesto
 import { auth, db } from '../../config/firebase';
 import AppBar from '../../components/AppBar';
 import * as Clipboard from 'expo-clipboard';
+import { useTranslation } from 'react-i18next';
 
 export default function RegisterScreen({ navigation }) {
     const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function RegisterScreen({ navigation }) {
     const [approvalCode, setApprovalCode] = useState('');
     const [showApprovalCodeOverlay, setShowApprovalCodeOverlay] = useState(false);
     const [generatedApprovalCode, setGeneratedApprovalCode] = useState('');
+    const { t } = useTranslation();
 
     const debounce = (func, wait) => {
         let timeout;
@@ -27,6 +29,10 @@ export default function RegisterScreen({ navigation }) {
             clearTimeout(timeout);
             timeout = setTimeout(() => func(...args), wait);
         };
+    };
+    const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
     };
     const generateApprovalCode = () => {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -42,26 +48,34 @@ export default function RegisterScreen({ navigation }) {
     const copyApprovalCode = async () => {
         try {
             await Clipboard.setStringAsync(generatedApprovalCode);
-            Alert.alert('Success', 'Approval code copied to clipboard!');
+            Alert.alert(t('common.success'), t('auth.approvalCodeCopied'));
         } catch (error) {
-            Alert.alert('Error', 'Failed to copy approval code');
+            Alert.alert(t('common.error'), 'Failed to copy approval code');
         }
     };
 
     const validateInput = async () => {
         if (!email || !password || !confirmPassword || !name) {
-            Alert.alert('Error', 'Please fill in all required fields');
+            Alert.alert(t('common.error'), t('auth.fillAllFields'));
+            return false;
+        }
+        if (password.length < 6) {
+            Alert.alert(t('common.error'), t('auth.passwordTooShort'));
+            return false;
+        }
+        if (!isValidEmail(email)) {
+            Alert.alert(t('common.error'), t('auth.invalidEmail'));
             return false;
         }
 
         if (password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            Alert.alert(t('common.error'), t('auth.passwordsDoNotMatch'));
             return false;
         }
 
         if (isAdmin) {
             if (!companyName) {
-                Alert.alert('Error', 'Please enter a company name');
+                Alert.alert(t('common.error'), t('auth.enterCompanyName'));
                 return false;
             }
 
@@ -79,17 +93,17 @@ export default function RegisterScreen({ navigation }) {
                     const companyData = companySnapshot.docs[0].data();
 
                     if (!approvalCode) {
-                        Alert.alert('Error', 'Please enter the company approval code');
+                        Alert.alert(t('common.error'), t('auth.enterApprovalCode'));
                         return false;
                     }
 
                     if (approvalCode !== companyData.approvalCode) {
-                        Alert.alert('Error', 'Invalid approval code');
+                        Alert.alert(t('common.error'), t('auth.invalidApprovalCode'));
                         return false;
                     }
                 }
             } catch (error) {
-                Alert.alert('Error', 'Failed to verify company information');
+                Alert.alert(t('common.error'), t('auth.verifyCompanyError'));
                 return false;
             }
         } else {
@@ -108,7 +122,7 @@ export default function RegisterScreen({ navigation }) {
                 const companySnapshot = await getDocs(companyQuery);
 
                 if (companySnapshot.empty) {
-                    Alert.alert('Error', 'Company does not exist. Please enter a valid company name.');
+                    Alert.alert(t('common.error'), t('auth.companyNotFound'));
                     return false;
                 }
             } catch (error) {
@@ -218,7 +232,7 @@ export default function RegisterScreen({ navigation }) {
 
                 setIsFirstAdmin(companySnapshot.empty);
                 if (!companySnapshot.empty) {
-                    Alert.alert('Notice', 'This company exists. You will need an approval code to register as an admin.');
+                    Alert.alert(t('common.warning'), t('auth.companyExists'));
                 }
             } catch (error) {
                 console.error('Error checking company name:', error);
@@ -236,7 +250,7 @@ export default function RegisterScreen({ navigation }) {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
             <AppBar
-                title="Security Tracker App"
+                title={t('common.appTitle')}
                 leftComponent={{
                     icon: 'arrow-back',
                     color: '#fff',
@@ -254,20 +268,20 @@ export default function RegisterScreen({ navigation }) {
                     <View style={styles.formContainer}>
 
                         <CheckBox
-                            title="Register as Company Admin"
+                            title={t('auth.registerAsGuardOrAdmin')}
                             checked={isAdmin}
                             onPress={() => setIsAdmin(!isAdmin)}
                             containerStyle={styles.checkboxContainer}
                         />
                         <Input
-                            placeholder="Name"
+                            placeholder={t('auth.name')}
                             value={name}
                             onChangeText={setName}
                             containerStyle={styles.inputContainer}
                             inputStyle={styles.input}
                         />
                         <Input
-                            placeholder="Email"
+                            placeholder={t('auth.email')}
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
@@ -275,7 +289,7 @@ export default function RegisterScreen({ navigation }) {
                             inputStyle={styles.input}
                         />
                         <Input
-                            placeholder="Password"
+                            placeholder={t('auth.password')}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
@@ -283,7 +297,7 @@ export default function RegisterScreen({ navigation }) {
                             inputStyle={styles.input}
                         />
                         <Input
-                            placeholder="Confirm Password"
+                            placeholder={t('auth.confirmPassword')}
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             secureTextEntry
@@ -292,7 +306,7 @@ export default function RegisterScreen({ navigation }) {
                         />
                         {isAdmin && (
                             <Input
-                                placeholder="Company Name"
+                                placeholder={t('auth.companyName')}
                                 value={companyName}
                                 onChangeText={handleCompanyNameChange}
                                 containerStyle={styles.inputContainer}
@@ -302,7 +316,7 @@ export default function RegisterScreen({ navigation }) {
 
                         {isAdmin && !isFirstAdmin && (
                             <Input
-                                placeholder="Company Approval Code"
+                                placeholder={t('auth.approvalCode')}
                                 value={approvalCode}
                                 onChangeText={setApprovalCode}
                                 containerStyle={styles.inputContainer}
@@ -312,7 +326,7 @@ export default function RegisterScreen({ navigation }) {
 
                         {!isAdmin && (
                             <Input
-                                placeholder="Company Name"
+                                placeholder={t('auth.companyName')}
                                 value={existingCompanyId}
                                 onChangeText={setExistingCompanyId}
                                 containerStyle={styles.inputContainer}
@@ -321,14 +335,14 @@ export default function RegisterScreen({ navigation }) {
                         )}
 
                         <Button
-                            title={isAdmin ? "Register Company" : "Register Guard"}
+                            title={isAdmin ? t('auth.registerAsAdmin') : t('auth.registerAsGuard')}
                             onPress={handleRegister}
                             loading={loading}
                             buttonStyle={styles.loginButton}
                             containerStyle={styles.buttonContainer}
                         />
                         <Button
-                            title="Back to Login"
+                            title={t('auth.backToLogin')}
                             type="outline"
                             onPress={() => navigation.navigate('Login')}
                             containerStyle={styles.buttonContainer}
@@ -344,19 +358,19 @@ export default function RegisterScreen({ navigation }) {
                 backdropStyle={{ backgroundColor: 'rgba(0,0,0,0.8)' }} // Make backdrop darker
             >
                 <View style={styles.overlayContent}>
-                    <Text h4 style={styles.overlayTitle}>Company Created Successfully</Text>
+                    <Text h4 style={styles.overlayTitle}>{t('auth.companyCreated')}</Text>
                     <Text style={styles.overlayText}>
-                        Your company approval code is:
+                        {t('auth.yourCompanyApprovalCode')}
                     </Text>
                     <TouchableOpacity onPress={copyApprovalCode} style={styles.codeContainer}>
                         <Text style={styles.codeText}>{generatedApprovalCode}</Text>
-                        <Text style={styles.copyText}>(Tap to copy)</Text>
+                        <Text style={styles.copyText}>{t('auth.tapToCopy')}</Text>
                     </TouchableOpacity>
                     <Text style={styles.warningText}>
                         Please save this code! You'll need it to add more administrators to your company.
                     </Text>
                     <Button
-                        title="I've Saved the Code"
+                        title={t('auth.iveSavedTheCode')}
                         onPress={async () => {
                             try {
                                 setShowApprovalCodeOverlay(false);

@@ -6,14 +6,18 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import AppBar from '../../components/AppBar';
 
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../../components/LanguageSelector';
+
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const { t } = useTranslation();
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert('Error', 'Please fill in all fields');
+            Alert.alert(t('common.error'), t('auth.fillAllFields'));
             return;
         }
 
@@ -47,10 +51,11 @@ export default function LoginScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <AppBar title="Security Tracker App" />
+            <AppBar title={t('common.appTitle')} />
+            <LanguageSelector />
             <View style={styles.formContainer}>
                 <Input
-                    placeholder="Email"
+                    placeholder={t('auth.email')}
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -58,7 +63,7 @@ export default function LoginScreen({ navigation }) {
                     inputStyle={styles.input}
                 />
                 <Input
-                    placeholder="Password"
+                    placeholder={t('auth.password')}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
@@ -66,14 +71,14 @@ export default function LoginScreen({ navigation }) {
                     inputStyle={styles.input}
                 />
                 <Button
-                    title="Login"
+                    title={t('auth.login')}
                     onPress={handleLogin}
                     loading={loading}
                     buttonStyle={styles.loginButton}
                     containerStyle={styles.buttonContainer}
                 />
                 <Button
-                    title="Register"
+                    title={t('auth.register')}
                     type="outline"
                     onPress={() => navigation.navigate('Register')}
                     containerStyle={styles.buttonContainer}
