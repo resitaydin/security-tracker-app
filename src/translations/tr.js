@@ -54,7 +54,6 @@ export default {
     verify: 'Onayla',
     checkLocation: 'Konum Kontrolü',
     distance: 'Mesafe',
-    currentDistance: 'Mevcut Mesafe',
     timeRemaining: 'Kalan Süre',
     lateWindowRemaining: 'Kalan Tolerans Süresi',
     noCheckpoints: 'Kontrol noktası bulunmamakta',
