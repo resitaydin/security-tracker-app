@@ -164,7 +164,7 @@ export default function RegisterScreen({ navigation }) {
             if (companySnapshot.empty && isAdmin) {
                 // First create the user to check if email is available
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                await signOut(auth);  // Sign out immediately after creation
+                const userId = userCredential.user.uid; // Store this before signing out
 
                 // Only create company if user registration was successful
                 const newApprovalCode = generateApprovalCode();
@@ -181,8 +181,8 @@ export default function RegisterScreen({ navigation }) {
                 });
 
                 // Create user document
-                await setDoc(doc(db, 'users', userCredential.user.uid), {
-                    id: userCredential.user.uid,
+                await setDoc(doc(db, 'users', userId), {
+                    id: userId,
                     name,
                     email,
                     companyId: customCompanyId,
@@ -191,6 +191,7 @@ export default function RegisterScreen({ navigation }) {
                     allowedLocations: []
                 });
 
+                await signOut(auth);
                 setGeneratedApprovalCode(newApprovalCode);
                 setShowApprovalCodeOverlay(true);
                 return;
@@ -198,10 +199,10 @@ export default function RegisterScreen({ navigation }) {
 
             // Handle regular guard or existing admin registration
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await signOut(auth);
+            const userId = userCredential.user.uid; // Store this before signing out
 
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-                id: userCredential.user.uid,
+            await setDoc(doc(db, 'users', userId), {
+                id: userId,
                 name,
                 email,
                 companyId,
@@ -209,6 +210,8 @@ export default function RegisterScreen({ navigation }) {
                 createdAt: new Date().toISOString(),
                 allowedLocations: []
             });
+
+            await signOut(auth);
 
             Alert.alert('Success', 'Account created successfully');
             navigation.navigate('Login');
