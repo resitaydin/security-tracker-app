@@ -164,36 +164,50 @@ export default function RegisterScreen({ navigation }) {
             if (companySnapshot.empty && isAdmin) {
                 // First create the user to check if email is available
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const userId = userCredential.user.uid; // Store this before signing out
+                const userId = userCredential.user.uid;
 
-                // Only create company if user registration was successful
-                const newApprovalCode = generateApprovalCode();
-                const timestamp = Date.now();
-                const customCompanyId = `COMP_${timestamp}`;
+                try {
+                    // Only create company if user registration was successful
+                    const newApprovalCode = generateApprovalCode();
+                    const timestamp = Date.now();
+                    const customCompanyId = `COMP_${timestamp}`;
 
-                // Create company document
-                await setDoc(doc(db, 'companies', customCompanyId), {
-                    id: customCompanyId,
-                    name: companyName,
-                    approvalCode: newApprovalCode,
-                    createdAt: new Date().toISOString(),
-                    settings: {}
-                });
+                    // Create company document first
+                    await setDoc(doc(db, 'companies', customCompanyId), {
+                        id: customCompanyId,
+                        name: companyName,
+                        approvalCode: newApprovalCode,
+                        createdAt: new Date().toISOString(),
+                        settings: {
+                            lateWindowMinutes: 15 // Default late window
+                        }
+                    });
 
-                // Create user document
-                await setDoc(doc(db, 'users', userId), {
-                    id: userId,
-                    name,
-                    email,
-                    companyId: customCompanyId,
-                    role: 'admin',
-                    createdAt: new Date().toISOString(),
-                    allowedLocations: []
-                });
+                    // Then create user document with the proper companyId
+                    await setDoc(doc(db, 'users', userId), {
+                        id: userId,
+                        name,
+                        email,
+                        companyId: customCompanyId,
+                        role: 'admin',
+                        createdAt: new Date().toISOString(),
+                        allowedLocations: []
+                    });
 
-                await signOut(auth);
-                setGeneratedApprovalCode(newApprovalCode);
-                setShowApprovalCodeOverlay(true);
+                    // Wait for a brief moment to ensure data is fully written
+                    // This helps prevent race conditions
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Now sign out and show approval code
+                    await signOut(auth);
+                    setGeneratedApprovalCode(newApprovalCode);
+                    setShowApprovalCodeOverlay(true);
+                } catch (err) {
+                    console.error("Error creating company/user:", err);
+                    // If we encounter an error, still sign out the partially created user
+                    await signOut(auth);
+                    throw err;
+                }
                 return;
             }
 
@@ -210,13 +224,15 @@ export default function RegisterScreen({ navigation }) {
                 createdAt: new Date().toISOString(),
                 allowedLocations: []
             });
-
+            // Wait briefly to ensure data is written
+            await new Promise(resolve => setTimeout(resolve, 500));
             await signOut(auth);
 
             Alert.alert('Success', 'Account created successfully');
             navigation.navigate('Login');
 
         } catch (error) {
+            console.error("Registration error:", error);
             Alert.alert('Error', error.message);
             return;
         } finally {

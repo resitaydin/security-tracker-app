@@ -21,9 +21,17 @@ export default function AdminHomeScreen({ navigation }) {
 
     const fetchCompanyData = async () => {
         try {
+            // Make sure we have an authenticated user first
+            if (!auth.currentUser) {
+                console.log("No user is authenticated, skipping fetchCompanyData");
+                return;
+            }
+
             const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
             if (!userDoc.exists()) {
-                throw new Error('User data not found');
+                console.log("User document doesn't exist for ID:", auth.currentUser.uid);
+                // Instead of throwing an error, just return and don't update state
+                return;
             }
 
             const userData = userDoc.data();
@@ -31,7 +39,9 @@ export default function AdminHomeScreen({ navigation }) {
             // Get company data
             const companyDoc = await getDoc(doc(db, 'companies', userData.companyId));
             if (!companyDoc.exists()) {
-                throw new Error('Company data not found');
+                console.log("Company document doesn't exist for ID:", userData.companyId);
+                // Instead of throwing an error, just return and don't update state
+                return;
             }
 
             setCompanyData({

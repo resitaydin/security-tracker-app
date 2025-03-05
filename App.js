@@ -5,6 +5,9 @@ import { auth, db } from './src/config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import i18next from 'i18next';
+
 import { LanguageProvider } from './src/contexts/LanguageContext';
 
 // Auth Screens
@@ -50,6 +53,11 @@ export default function App() {
             const userData = userDoc.data();
             console.log('User role:', userData.role);
             setIsAdmin(userData.role === 'admin');
+          }
+          else {
+            // Handle missing user document more gracefully
+            console.log('User document not found, but user is authenticated');
+            setIsAdmin(false);
           }
         } catch (error) {
           console.error('Error checking admin status:', error);
