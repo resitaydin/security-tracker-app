@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 export default {
     expo: {
-        name: "Guvenlik Takip Sistemi",
+        name: "Guvenlik Takip",
         slug: "security-tracker-app",
         version: "1.0.0",
         orientation: "portrait",
