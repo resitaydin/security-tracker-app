@@ -103,8 +103,9 @@ export default function CheckpointDetailScreen({ route, navigation }) {
                         radius: CHECKPOINT_RADIUS
                     })
                 );
+                return false; // Return false if not within range
             }
-            return true;
+            return true; // Only return true if within range
         } catch (error) {
             Alert.alert('Error', 'Failed to get location: ' + error.message);
             return false;
@@ -120,12 +121,10 @@ export default function CheckpointDetailScreen({ route, navigation }) {
             if (!location) {
                 const isLocationValid = await checkLocation();
                 if (!isLocationValid) return;
-            }
-
-            // Verify that location exists after potential check
-            if (!location) {
-                Alert.alert('Error', 'Please check your location first');
-                return;
+            } else {
+                // If location exists, re-verify it's still within range
+                const isLocationValid = await checkLocation();
+                if (!isLocationValid) return;
             }
 
             const now = new Date();
